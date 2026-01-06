@@ -42,12 +42,15 @@ const updateChart = () => {
       }
     },
     legend: {
-      data: ['CPU使用率', '负载平均值']
+      data: ['CPU使用率', '负载平均值'],
+      top: 10,
+      left: 'center'
     },
     grid: {
       left: '3%',
       right: '4%',
-      bottom: '3%',
+      bottom: '8%',
+      top: '15%',
       containLabel: true
     },
     xAxis: {

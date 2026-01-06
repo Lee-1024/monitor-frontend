@@ -34,6 +34,16 @@ const updateChart = () => {
       trigger: 'axis',
       axisPointer: {
         type: 'shadow'
+      },
+      formatter: (params: any) => {
+        if (!params || !Array.isArray(params) || params.length === 0) {
+          return ''
+        }
+        const param = params[0]
+        const value = param.value || 0
+        const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+        const formattedValue = isNaN(numValue) || !isFinite(numValue) ? '0.0' : numValue.toFixed(1)
+        return `${param.seriesName}<br/>${param.name}: ${formattedValue}%`
       }
     },
     grid: {
@@ -46,7 +56,13 @@ const updateChart = () => {
       type: 'value',
       max: 100,
       axisLabel: {
-        formatter: '{value}%'
+        formatter: (value: any) => {
+          const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+          if (isNaN(numValue) || !isFinite(numValue)) {
+            return '0%'
+          }
+          return numValue.toFixed(1) + '%'
+        }
       }
     },
     yAxis: {
@@ -73,7 +89,14 @@ const updateChart = () => {
         label: {
           show: true,
           position: 'right',
-          formatter: '{c}%'
+          formatter: (params: any) => {
+            const value = params.value || 0
+            const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+            if (isNaN(numValue) || !isFinite(numValue)) {
+              return '0.0%'
+            }
+            return numValue.toFixed(1) + '%'
+          }
         }
       }
     ]

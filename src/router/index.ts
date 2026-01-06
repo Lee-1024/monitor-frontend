@@ -22,6 +22,12 @@ const routes: RouteRecordRaw[] = [
     name: 'AgentDetail',
     component: () => import('@/views/AgentDetail.vue'),
     meta: { title: 'Agent详情' }
+  },
+  {
+    path: '/crash-analysis',
+    name: 'CrashAnalysis',
+    component: () => import('@/views/CrashAnalysis.vue'),
+    meta: { title: '宕机分析' }
   }
 ]
 

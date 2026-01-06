@@ -1,12 +1,18 @@
 <template>
   <el-config-provider :locale="zhCn">
-    <router-view />
+    <div class="app-container">
+      <NavMenu />
+      <div class="app-content">
+        <router-view />
+      </div>
+    </div>
   </el-config-provider>
 </template>
 
 <script setup lang="ts">
 // @ts-ignore
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+import NavMenu from './components/NavMenu.vue'
 </script>
 
 <style>
@@ -20,5 +26,16 @@ html, body, #app {
   width: 100%;
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.app-content {
+  flex: 1;
+  overflow: auto;
 }
 </style>
