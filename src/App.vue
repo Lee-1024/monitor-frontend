@@ -1,7 +1,7 @@
 <template>
   <el-config-provider :locale="zhCn">
     <div class="app-container">
-      <NavMenu />
+      <NavMenu v-if="showNavMenu" />
       <div class="app-content">
         <router-view />
       </div>
@@ -13,6 +13,11 @@
 // @ts-ignore
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import NavMenu from './components/NavMenu.vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+
+const route = useRoute()
+const showNavMenu = computed(() => route.path !== '/login')
 </script>
 
 <style>

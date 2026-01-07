@@ -52,8 +52,15 @@ const updateChart = () => {
       recv.push(0)
       continue
     }
-    const prev = props.data[i - 1].values
-    const curr = props.data[i].values
+    const prevItem = props.data[i - 1]
+    const currItem = props.data[i]
+    if (!prevItem || !currItem) {
+      sent.push(0)
+      recv.push(0)
+      continue
+    }
+    const prev = prevItem.values || {}
+    const curr = currItem.values || {}
     const deltaSent = (curr.bytes_sent || 0) - (prev.bytes_sent || 0)
     const deltaRecv = (curr.bytes_recv || 0) - (prev.bytes_recv || 0)
     sent.push(Math.max(deltaSent, 0))

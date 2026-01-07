@@ -198,6 +198,7 @@ const selectedHost = ref('')
 const agents = ref<Agent[]>([])
 interface CrashAnalysisData {
   total_crashes: number
+  resolved_count?: number  // 已恢复数量（从后端返回）
   crash_frequency: string
   main_reasons: Record<string, number>
   avg_downtime: string
@@ -205,6 +206,7 @@ interface CrashAnalysisData {
 }
 const analysis = ref<CrashAnalysisData>({
   total_crashes: 0,
+  resolved_count: 0,
   crash_frequency: '暂无数据',
   main_reasons: {},
   avg_downtime: '0分钟',
@@ -219,7 +221,13 @@ const trendChartRef = ref<HTMLElement | null>(null)
 let reasonChart: echarts.ECharts | null = null
 let trendChart: echarts.ECharts | null = null
 
+// 已恢复数量：优先使用后端返回的数据，否则从前端events计算
 const resolvedCount = computed(() => {
+  // 如果后端返回了resolved_count，使用后端数据
+  if (analysis.value.resolved_count !== undefined) {
+    return analysis.value.resolved_count
+  }
+  // 否则从前端events计算
   return events.value.filter((e: any) => e.is_resolved).length
 })
 
@@ -247,16 +255,30 @@ const loadAnalysis = async () => {
     // 如果选择了特定主机，获取分析数据
     if (selectedHost.value) {
       const analysisRes = await axios.get(`/v1/crash/analysis/${selectedHost.value}`) as unknown as ApiResponse<CrashAnalysisData>
-      analysis.value = analysisRes.data
+      if (analysisRes.data) {
+        analysis.value = analysisRes.data
+        // 确保resolved_count被设置
+        if (analysis.value.resolved_count === undefined) {
+          analysis.value.resolved_count = events.value.filter((e: any) => e.is_resolved).length
+        }
+        console.log('Analysis data from backend:', analysis.value)
+      }
     } else {
       // 否则基于事件列表生成统计
+      const resolved = events.value.filter((e: any) => e.is_resolved).length
       analysis.value = {
         total_crashes: events.value.length,
+        resolved_count: resolved,
         crash_frequency: calculateFrequency(events.value),
         main_reasons: analyzeReasons(events.value),
         avg_downtime: calculateAvgDowntime(events.value),
         recent_crashes: events.value
       }
+      console.log('Analysis data calculated locally:', {
+        total: events.value.length,
+        resolved: resolved,
+        events: events.value.map((e: any) => ({ id: e.id, is_resolved: e.is_resolved }))
+      })
     }
     
     // 更新图表

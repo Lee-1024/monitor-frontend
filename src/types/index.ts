@@ -58,7 +58,8 @@ export interface ApiResponse<T = any> {
 
 // 分页响应
 export interface PaginatedResponse<T> {
-  agents: T[]
+  agents?: T[]
+  users?: T[]
   total: number
   page: number
   page_size: number

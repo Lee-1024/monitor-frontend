@@ -39,6 +39,28 @@ const updateChart = () => {
       trigger: 'axis',
       axisPointer: {
         type: 'cross'
+      },
+      formatter: (params: any) => {
+        if (!params || !Array.isArray(params) || params.length === 0) {
+          return ''
+        }
+        let result = `${params[0].axisValue}<br/>`
+        params.forEach((item: any) => {
+          const value = item.value || 0
+          const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
+          const seriesName = item.seriesName || ''
+          
+          if (seriesName === 'CPU使用率') {
+            // CPU使用率显示为百分比，保留两位小数
+            result += `${item.marker || '●'} ${seriesName}: <strong>${numValue.toFixed(2)}%</strong><br/>`
+          } else if (seriesName === '负载平均值') {
+            // 负载平均值显示为数字，保留两位小数
+            result += `${item.marker || '●'} ${seriesName}: <strong>${numValue.toFixed(2)}</strong><br/>`
+          } else {
+            result += `${item.marker || '●'} ${seriesName}: <strong>${numValue.toFixed(2)}</strong><br/>`
+          }
+        })
+        return result
       }
     },
     legend: {

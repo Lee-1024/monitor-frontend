@@ -295,7 +295,6 @@ const updateChart = () => {
   // 如果还没有创建observer，创建一个用于格式化Y轴标签
   if (!observer) {
     let formatInterval: number | null = null
-    const processedElements = new WeakSet()
     
     const formatYAxisLabels = () => {
       // 查找图表容器内的所有SVG文本元素（Y轴标签通常是SVG的text或tspan元素）
