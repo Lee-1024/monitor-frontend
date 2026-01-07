@@ -2,6 +2,19 @@
   <div class="login-container">
     <div class="login-box">
       <div class="login-header">
+        <!-- 像素风格图标 -->
+        <div class="pixel-icon">
+          <div class="pixel-monitor">
+            <div class="pixel-screen">
+              <div class="pixel-line"></div>
+              <div class="pixel-line"></div>
+              <div class="pixel-line"></div>
+              <div class="pixel-dot"></div>
+            </div>
+            <div class="pixel-stand"></div>
+            <div class="pixel-base"></div>
+          </div>
+        </div>
         <h2>监控系统</h2>
         <p>Monitor System</p>
       </div>
@@ -207,6 +220,33 @@ const handleRegister = async () => {
   align-items: center;
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 像素网格背景 */
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 20px 20px;
+  animation: gridMove 20s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes gridMove {
+  0% {
+    transform: translate(0, 0);
+  }
+  100% {
+    transform: translate(20px, 20px);
+  }
 }
 
 .login-box {
@@ -214,7 +254,14 @@ const handleRegister = async () => {
   padding: 40px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  box-shadow: 
+    0 10px 40px rgba(0, 0, 0, 0.1),
+    0 0 0 4px #fff,
+    0 0 0 6px #667eea,
+    inset 0 0 20px rgba(102, 126, 234, 0.1);
+  position: relative;
+  z-index: 1;
+  border: 2px solid rgba(102, 126, 234, 0.3);
 }
 
 .login-header {
@@ -222,15 +269,145 @@ const handleRegister = async () => {
   margin-bottom: 30px;
 }
 
+/* 像素风格图标 */
+.pixel-icon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.pixel-monitor {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+/* 显示器屏幕 */
+.pixel-screen {
+  position: absolute;
+  top: 0;
+  left: 10px;
+  width: 60px;
+  height: 45px;
+  background: #1a1a2e;
+  border: 3px solid #0f3460;
+  box-shadow: 
+    inset 2px 2px 0 #0a0a1a,
+    inset -2px -2px 0 #2a2a4e,
+    0 0 10px rgba(0, 255, 136, 0.3);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* 屏幕内容 - 像素线条 */
+.pixel-line {
+  position: absolute;
+  left: 5px;
+  width: 50px;
+  height: 2px;
+  background: #00ff88;
+  box-shadow: 0 0 4px #00ff88;
+}
+
+.pixel-line:nth-child(1) {
+  top: 8px;
+  animation: scan 2s ease-in-out infinite;
+}
+
+.pixel-line:nth-child(2) {
+  top: 18px;
+  width: 35px;
+  animation: scan 2s ease-in-out infinite 0.3s;
+}
+
+.pixel-line:nth-child(3) {
+  top: 28px;
+  width: 40px;
+  animation: scan 2s ease-in-out infinite 0.6s;
+}
+
+@keyframes scan {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* 像素点 */
+.pixel-dot {
+  position: absolute;
+  top: 35px;
+  right: 8px;
+  width: 4px;
+  height: 4px;
+  background: #00ff88;
+  box-shadow: 
+    0 0 4px #00ff88,
+    4px 0 0 #00ff88,
+    8px 0 0 #00ff88;
+  animation: blink 1s ease-in-out infinite;
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* 显示器支架 */
+.pixel-stand {
+  position: absolute;
+  top: 45px;
+  left: 35px;
+  width: 10px;
+  height: 8px;
+  background: #0f3460;
+  border: 2px solid #16213e;
+}
+
+/* 显示器底座 */
+.pixel-base {
+  position: absolute;
+  top: 53px;
+  left: 25px;
+  width: 30px;
+  height: 4px;
+  background: #0f3460;
+  border: 2px solid #16213e;
+  box-shadow: 0 2px 0 #0a1a2e;
+}
+
 .login-header h2 {
   font-size: 28px;
   color: #333;
   margin-bottom: 8px;
+  font-family: 'Courier New', monospace;
+  text-shadow: 2px 2px 0 #ddd;
 }
 
 .login-header p {
   font-size: 14px;
   color: #999;
+  font-family: 'Courier New', monospace;
 }
 
 .login-tabs {

@@ -41,6 +41,30 @@ const routes: RouteRecordRaw[] = [
     name: 'Users',
     component: () => import('@/views/Users.vue'),
     meta: { title: '用户管理', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/processes',
+    name: 'Processes',
+    component: () => import('@/views/Processes.vue'),
+    meta: { title: '进程监控', requiresAuth: true }
+  },
+  {
+    path: '/logs',
+    name: 'Logs',
+    component: () => import('@/views/Logs.vue'),
+    meta: { title: '日志查看', requiresAuth: true }
+  },
+  {
+    path: '/scripts',
+    name: 'Scripts',
+    component: () => import('@/views/Scripts.vue'),
+    meta: { title: '脚本执行', requiresAuth: true }
+  },
+  {
+    path: '/services',
+    name: 'Services',
+    component: () => import('@/views/Services.vue'),
+    meta: { title: '服务状态', requiresAuth: true }
   }
 ]
 

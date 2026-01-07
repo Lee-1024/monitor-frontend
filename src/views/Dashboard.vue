@@ -138,11 +138,23 @@ let timer: any = null
 const fetchOverview = async () => {
   try {
     const res = await getOverview() as unknown as ApiResponse<Overview>
-    if (res.data) {
-      overview.value = res.data
+    console.log('Overview API response:', res)
+    if (res && res.data) {
+      overview.value = {
+        total_agents: res.data.total_agents || 0,
+        online_agents: res.data.online_agents || 0,
+        offline_agents: res.data.offline_agents || 0,
+        avg_cpu: res.data.avg_cpu || 0,
+        avg_memory: res.data.avg_memory || 0,
+        total_metrics: res.data.total_metrics || 0
+      }
+      console.log('Updated overview:', overview.value)
+    } else {
+      console.warn('No overview data in response')
     }
   } catch (error) {
     console.error('Failed to fetch overview:', error)
+    ElMessage.error('获取概览数据失败')
   }
 }
 

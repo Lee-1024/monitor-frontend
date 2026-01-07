@@ -1,7 +1,8 @@
 import axios from 'axios'
-import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig } from 'axios'
+import type { AxiosInstance, AxiosResponse, InternalAxiosRequestConfig, AxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
+import type { ApiResponse } from '@/types'
 
 const service: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
@@ -136,4 +137,11 @@ service.interceptors.response.use(
   }
 )
 
-export default service
+// 类型安全的请求函数包装
+function request<T = any>(config: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  return service(config) as Promise<ApiResponse<T>>
+}
+
+// 导出 request 函数和 service 实例
+export default request
+export { service as axios }

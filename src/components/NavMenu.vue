@@ -18,6 +18,22 @@
         <el-icon><Warning /></el-icon>
         <span>宕机分析</span>
       </el-menu-item>
+      <el-menu-item index="/processes">
+        <el-icon><Monitor /></el-icon>
+        <span>进程监控</span>
+      </el-menu-item>
+      <el-menu-item index="/logs">
+        <el-icon><Document /></el-icon>
+        <span>日志查看</span>
+      </el-menu-item>
+      <el-menu-item index="/scripts">
+        <el-icon><Tools /></el-icon>
+        <span>脚本执行</span>
+      </el-menu-item>
+      <el-menu-item index="/services">
+        <el-icon><Connection /></el-icon>
+        <span>服务状态</span>
+      </el-menu-item>
       <el-menu-item v-if="userStore.isAdmin" index="/users">
         <el-icon><User /></el-icon>
         <span>用户管理</span>
@@ -53,7 +69,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton } from '@element-plus/icons-vue'
+import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton, Document, Tools, Connection } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 
 const route = useRoute()

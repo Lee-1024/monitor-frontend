@@ -44,7 +44,7 @@ export interface ChangePasswordRequest {
 
 // 用户注册
 export const register = (data: RegisterRequest) => {
-  return request<ApiResponse<AuthResponse>>({
+  return request<AuthResponse>({
     url: '/v1/auth/register',
     method: 'post',
     data
@@ -53,7 +53,7 @@ export const register = (data: RegisterRequest) => {
 
 // 用户登录
 export const login = (data: LoginRequest) => {
-  return request<ApiResponse<AuthResponse>>({
+  return request<AuthResponse>({
     url: '/v1/auth/login',
     method: 'post',
     data
@@ -62,7 +62,7 @@ export const login = (data: LoginRequest) => {
 
 // 刷新Token
 export const refreshToken = (data: RefreshTokenRequest) => {
-  return request<ApiResponse<AuthResponse>>({
+  return request<AuthResponse>({
     url: '/v1/auth/refresh',
     method: 'post',
     data
@@ -71,7 +71,7 @@ export const refreshToken = (data: RefreshTokenRequest) => {
 
 // 获取当前用户信息
 export const getCurrentUser = () => {
-  return request<ApiResponse<UserInfo>>({
+  return request<UserInfo>({
     url: '/v1/user/me',
     method: 'get'
   })

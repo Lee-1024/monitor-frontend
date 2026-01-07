@@ -176,7 +176,7 @@ import { ElMessage } from 'element-plus'
 import { Warning, Clock, TrendCharts, CircleCheck } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
-import axios from '@/utils/request'
+import { axios } from '@/utils/request'
 import type { Agent, ApiResponse, PaginatedResponse } from '@/types'
  
 interface CrashEvent {
