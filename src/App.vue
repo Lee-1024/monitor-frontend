@@ -17,6 +17,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
+// 大屏页面在非全屏时也显示导航菜单
 const showNavMenu = computed(() => route.path !== '/login')
 </script>
 

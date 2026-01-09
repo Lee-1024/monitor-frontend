@@ -65,6 +65,18 @@ const routes: RouteRecordRaw[] = [
     name: 'Services',
     component: () => import('@/views/Services.vue'),
     meta: { title: '服务状态', requiresAuth: true }
+  },
+  {
+    path: '/alerts',
+    name: 'Alerts',
+    component: () => import('@/views/Alerts.vue'),
+    meta: { title: '告警管理', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/bigscreen',
+    name: 'BigScreen',
+    component: () => import('@/views/BigScreen.vue'),
+    meta: { title: '监控大屏', requiresAuth: true }
   }
 ]
 

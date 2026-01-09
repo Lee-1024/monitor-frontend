@@ -15,8 +15,8 @@
             <div class="pixel-base"></div>
           </div>
         </div>
-        <h2>监控系统</h2>
-        <p>Monitor System</p>
+        <h2>分形感知监控系统</h2>
+        <p>FractalSense</p>
       </div>
       
       <el-tabs v-model="activeTab" class="login-tabs">
