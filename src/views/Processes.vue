@@ -6,11 +6,11 @@
         <div class="card-header">
           <span>进程使用趋势（前10名）</span>
           <div class="header-actions">
-            <el-radio-group v-model="chartMetricType" @change="loadProcessHistory">
+            <el-radio-group v-model="chartMetricType" @change="debouncedLoadProcessHistory">
               <el-radio-button label="cpu">CPU使用率</el-radio-button>
               <el-radio-button label="memory">内存使用率</el-radio-button>
             </el-radio-group>
-            <el-select v-model="chartTimeRange" style="width: 150px; margin-left: 10px" @change="loadProcessHistory">
+            <el-select v-model="chartTimeRange" style="width: 150px; margin-left: 10px" @change="debouncedLoadProcessHistory">
               <el-option label="最近1小时" value="1h" />
               <el-option label="最近3小时" value="3h" />
               <el-option label="最近6小时" value="6h" />
@@ -19,7 +19,7 @@
             </el-select>
             <el-button type="primary" @click="loadProcessHistory" style="margin-left: 10px">
               <el-icon><Refresh /></el-icon>
-              刷新
+              刷新图表
             </el-button>
           </div>
         </div>
@@ -36,7 +36,7 @@
         <div class="card-header">
           <span>进程监控</span>
           <div class="header-actions">
-            <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="loadProcesses">
+            <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="debouncedLoadProcesses">
               <el-option label="全部主机" value="" />
               <el-option
                 v-for="agent in agents"
@@ -54,7 +54,7 @@
             </el-select>
             <el-button type="primary" @click="loadProcesses" style="margin-left: 10px">
               <el-icon><Refresh /></el-icon>
-              刷新
+              刷新列表
             </el-button>
           </div>
         </div>
@@ -130,6 +130,17 @@ import { axios } from '@/utils/request'
 import type { Agent, ApiResponse } from '@/types'
 import ProcessHistoryChart from '@/components/ProcessHistoryChart.vue'
 
+// 防抖工具函数
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): T {
+  let timeout: ReturnType<typeof setTimeout> | null = null
+  return ((...args: Parameters<T>) => {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => {
+      func(...args)
+    }, wait)
+  }) as T
+}
+
 interface ProcessInfo {
   id: number
   host_id: string
@@ -160,6 +171,11 @@ const processHistoryData = ref<Array<{
 }>>([])
 const chartMetricType = ref<'cpu' | 'memory'>('cpu')
 const chartTimeRange = ref('1h')
+
+// 用于控制错误提示频率，避免频繁提示
+let lastEmptyWarningTime = 0 // 空数据提示时间
+let lastErrorWarningTime = 0 // 错误提示时间
+const WARNING_INTERVAL = 3000 // 3秒内不重复提示
 
 // 排序后的进程列表
 const sortedProcesses = computed(() => {
@@ -198,6 +214,11 @@ const loadAgents = async () => {
 }
 
 const loadProcesses = async () => {
+  // 防止重复请求
+  if (loading.value) {
+    return
+  }
+  
   try {
     loading.value = true
     const params: any = { limit: 100 }
@@ -211,24 +232,37 @@ const loadProcesses = async () => {
     
     if (res && res.data) {
       processes.value = res.data
-      console.log(`Loaded ${res.data.length} processes`)
+      console.log(`Loaded ${res.data.length} active processes`)
+      // 只有在数据为空且距离上次提示超过3秒时才提示
       if (res.data.length === 0) {
-        ElMessage.warning('暂无进程数据，请确认Agent是否正在运行并上报数据')
-      } else {
-        // 加载进程列表后，自动加载历史数据
-        loadProcessHistory()
+        const now = Date.now()
+        if (now - lastEmptyWarningTime > WARNING_INTERVAL) {
+          ElMessage.warning('暂无活跃进程数据，请确认Agent是否正在运行并上报数据')
+          lastEmptyWarningTime = now
+        }
       }
+      // 进程列表和历史数据独立，历史数据由用户手动刷新图表
     } else {
       processes.value = []
       console.warn('No process data in response')
     }
   } catch (error: any) {
     console.error('Failed to load processes:', error)
-    ElMessage.error('加载进程列表失败: ' + (error.response?.data?.message || error.message))
+    // 错误提示也做防抖处理，使用独立的时间戳
+    const now = Date.now()
+    if (now - lastErrorWarningTime > WARNING_INTERVAL) {
+      ElMessage.error('加载进程列表失败: ' + (error.response?.data?.message || error.message))
+      lastErrorWarningTime = now
+    }
   } finally {
     loading.value = false
   }
 }
+
+// 使用防抖包装loadProcesses，避免频繁触发
+const debouncedLoadProcesses = debounce(loadProcesses, 300)
+
+// 注意：debouncedLoadProcessHistory 必须在 loadProcessHistory 函数定义之后创建
 
 const formatBytes = (bytes: number) => {
   if (bytes < 1024) return bytes + ' B'
@@ -294,45 +328,35 @@ const getStatusType = (status: string) => {
   return 'info'
 }
 
-// 加载进程历史数据
+// 加载进程历史数据（从历史数据中查找CPU/内存占用最高的前10个进程）
 const loadProcessHistory = async () => {
+  // 防止重复请求
+  if (historyLoading.value) {
+    return
+  }
+  
   try {
     historyLoading.value = true
-    
-    // 获取前10个进程名（按当前选择的指标排序）
-    const topProcesses = [...processes.value]
-      .sort((a, b) => {
-        if (chartMetricType.value === 'cpu') {
-          return b.cpu_percent - a.cpu_percent
-        } else {
-          return b.memory_percent - a.memory_percent
-        }
-      })
-      .slice(0, 10)
-      .map(p => p.name)
-      .filter((name, index, self) => self.indexOf(name) === index) // 去重
-    
-    if (topProcesses.length === 0) {
-      processHistoryData.value = []
-      return
-    }
     
     // 计算时间范围
     const hours = parseInt(chartTimeRange.value.replace('h', ''))
     const end = dayjs()
     const start = end.subtract(hours, 'hour')
     
+    // 不传 process_names，让后端自动从历史数据中查找CPU/内存占用最高的前10个进程
     const params: any = {
-      process_names: topProcesses.join(','),
+      metric_type: chartMetricType.value, // cpu 或 memory
+      top_n: 10, // 前10个进程
       start: start.toISOString(),
       end: end.toISOString(),
-      limit: 1000
+      limit: 5000
     }
     
     if (selectedHost.value) {
       params.host_id = selectedHost.value
     }
     
+    console.log('Loading top process history by', chartMetricType.value, 'for time range:', start.format('YYYY-MM-DD HH:mm:ss'), 'to', end.format('YYYY-MM-DD HH:mm:ss'))
     const res = await axios.get('/v1/processes/history', { params }) as unknown as ApiResponse<Array<{
       timestamp: string
       process_name: string
@@ -345,6 +369,10 @@ const loadProcessHistory = async () => {
       processHistoryData.value = res.data
       if (res.data.length === 0) {
         ElMessage.warning('暂无历史数据')
+      } else {
+        // 统计返回的进程名
+        const processNames = new Set(res.data.map(d => d.process_name))
+        console.log(`Loaded ${res.data.length} history records for ${processNames.size} top processes:`, Array.from(processNames))
       }
     } else {
       processHistoryData.value = []
@@ -358,13 +386,14 @@ const loadProcessHistory = async () => {
   }
 }
 
+// 使用防抖包装loadProcessHistory，避免频繁触发（必须在loadProcessHistory定义之后）
+const debouncedLoadProcessHistory = debounce(loadProcessHistory, 300)
+
 onMounted(() => {
   loadAgents()
   loadProcesses()
-  // 延迟加载历史数据，等待进程列表加载完成
-  setTimeout(() => {
-    loadProcessHistory()
-  }, 1000)
+  // 加载历史数据（基于历史数据中的top进程）
+  loadProcessHistory()
 })
 </script>
 
