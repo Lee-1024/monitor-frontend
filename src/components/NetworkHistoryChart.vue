@@ -3,7 +3,7 @@
 <!-- ============================================ -->
 <template>
   <div v-loading="loading">
-    <div ref="chartRef" style="width: 100%; height: 400px;"></div>
+    <div ref="chartRef" style="width: 100%; height: 100%; min-height: 350px;"></div>
   </div>
 </template>
 
@@ -111,7 +111,11 @@ const updateChart = () => {
     legend: {
       data: ['发送', '接收'],
       top: 10,
-      left: 'center'
+      left: 'center',
+      textStyle: {
+        fontSize: 12
+      },
+      itemGap: 20
     },
     grid: {
       left: '3%',
@@ -123,12 +127,17 @@ const updateChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: times
+      data: times,
+      axisLabel: {
+        fontSize: 12,
+        rotate: 0
+      }
     },
     yAxis: {
       type: 'value',
       name: '吞吐量',
       axisLabel: {
+        fontSize: 12,
         formatter: (value: any) => {
           // 确保值是数字，处理带逗号的字符串
           let numValue = 0

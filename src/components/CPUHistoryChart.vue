@@ -3,7 +3,7 @@
 <!-- ============================================ -->
 <template>
   <div v-loading="loading">
-    <div ref="chartRef" style="width: 100%; height: 400px;"></div>
+    <div ref="chartRef" style="width: 100%; height: 100%; min-height: 350px;"></div>
   </div>
 </template>
 
@@ -66,7 +66,11 @@ const updateChart = () => {
     legend: {
       data: ['CPU使用率', '负载平均值'],
       top: 10,
-      left: 'center'
+      left: 'center',
+      textStyle: {
+        fontSize: 12
+      },
+      itemGap: 20
     },
     grid: {
       left: '3%',
@@ -78,7 +82,11 @@ const updateChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: times
+      data: times,
+      axisLabel: {
+        fontSize: 12,
+        rotate: 0
+      }
     },
     yAxis: [
       {
@@ -86,17 +94,19 @@ const updateChart = () => {
         name: 'CPU (%)',
         position: 'left',
         max: 100,
-        axisLabel: {
-          formatter: '{value}%'
-        }
+      axisLabel: {
+        fontSize: 12,
+        formatter: '{value}%'
+      }
       },
       {
         type: 'value',
         name: '负载',
         position: 'right',
-        axisLabel: {
-          formatter: '{value}'
-        }
+      axisLabel: {
+        fontSize: 12,
+        formatter: '{value}'
+      }
       }
     ],
     series: [

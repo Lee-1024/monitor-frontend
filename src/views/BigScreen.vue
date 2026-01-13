@@ -52,7 +52,7 @@
       <!-- 左侧区域 -->
       <div class="left-panel">
         <!-- 主机状态 -->
-        <div class="panel-box">
+        <div class="panel-box" style="flex: 0 0 auto;">
           <div class="panel-header">
             <span class="panel-icon">🖥️</span>
             <span class="panel-title">主机状态</span>
@@ -80,7 +80,7 @@
         </div>
 
         <!-- 告警统计 -->
-        <div class="panel-box">
+        <div class="panel-box" style="flex: 0 0 auto;">
           <div class="panel-header">
             <span class="panel-icon">🚨</span>
             <span class="panel-title">告警统计</span>
@@ -113,7 +113,7 @@
         </div>
 
         <!-- 系统指标 -->
-        <div class="panel-box">
+        <div class="panel-box" style="flex: 1 1 auto; min-height: 0;">
           <div class="panel-header">
             <span class="panel-icon">📊</span>
             <span class="panel-title">系统指标</span>
@@ -161,7 +161,7 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 实时告警列表 -->
-        <div class="panel-box">
+        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;">
           <div class="panel-header">
             <span class="panel-icon">⚠️</span>
             <span class="panel-title">实时告警</span>
@@ -187,7 +187,7 @@
         </div>
 
         <!-- Top进程 -->
-        <div class="panel-box">
+        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;">
           <div class="panel-header">
             <span class="panel-icon">⚙️</span>
             <span class="panel-title">Top进程</span>
@@ -341,10 +341,11 @@ const updateCPUChart = (data: any[]) => {
   const option = {
     backgroundColor: 'transparent',
     grid: {
-      left: '10%',
-      right: '10%',
-      top: '15%',
-      bottom: '10%'
+      left: '12%',
+      right: '8%',
+      top: '12%',
+      bottom: '8%',
+      containLabel: false
     },
     xAxis: {
       type: 'value',
@@ -386,10 +387,11 @@ const updateMemoryChart = (data: any[]) => {
   const option = {
     backgroundColor: 'transparent',
     grid: {
-      left: '10%',
-      right: '10%',
-      top: '15%',
-      bottom: '10%'
+      left: '12%',
+      right: '8%',
+      top: '12%',
+      bottom: '8%',
+      containLabel: false
     },
     xAxis: {
       type: 'value',
@@ -838,10 +840,56 @@ onUnmounted(() => {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 300px 1fr 350px;
+  grid-template-columns: 320px 1fr 360px;
   gap: 20px;
   padding: 20px;
-  min-height: calc(100vh - 120px);
+  height: calc(100vh - 170px);
+  overflow: hidden;
+}
+
+/* 左侧面板 */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.left-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.left-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 2px;
+}
+
+/* 中间面板 */
+.center-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 右侧面板 */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.right-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.right-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 2px;
 }
 
 /* 面板样式 */
@@ -850,10 +898,10 @@ onUnmounted(() => {
   border: 1px solid rgba(0, 212, 255, 0.3);
   border-radius: 8px;
   padding: 15px;
-  margin-bottom: 20px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
   transition: all 0.3s;
+  flex-shrink: 0;
 }
 
 .panel-box:hover {
@@ -882,15 +930,28 @@ onUnmounted(() => {
 
 .panel-content {
   color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* 统计项 */
+.panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
 .stat-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid rgba(0, 212, 255, 0.1);
+  flex-shrink: 0;
 }
 
 .stat-item:last-child {
@@ -916,7 +977,9 @@ onUnmounted(() => {
 .alert-stat {
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 12px;
+  flex: 1;
+  justify-content: space-around;
 }
 
 .alert-item {
@@ -957,7 +1020,12 @@ onUnmounted(() => {
 
 /* 指标项 */
 .metric-item {
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  flex-shrink: 0;
+}
+
+.metric-item:last-child {
+  margin-bottom: 0;
 }
 
 .metric-label {
@@ -1003,9 +1071,16 @@ onUnmounted(() => {
   border: 1px solid rgba(0, 212, 255, 0.3);
   border-radius: 8px;
   padding: 15px;
-  margin-bottom: 20px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.chart-box:last-child {
+  margin-bottom: 0;
 }
 
 .chart-header {
@@ -1015,6 +1090,7 @@ onUnmounted(() => {
   margin-bottom: 15px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+  flex-shrink: 0;
 }
 
 .chart-icon {
@@ -1029,13 +1105,15 @@ onUnmounted(() => {
 
 .chart-container {
   width: 100%;
-  height: 300px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* 告警列表 */
 .alert-list {
-  max-height: 400px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .alert-list::-webkit-scrollbar {
@@ -1102,8 +1180,9 @@ onUnmounted(() => {
 
 /* 进程列表 */
 .process-list {
-  max-height: 300px;
+  flex: 1;
   overflow-y: auto;
+  min-height: 0;
 }
 
 .process-list::-webkit-scrollbar {
@@ -1209,6 +1288,12 @@ onUnmounted(() => {
 /* 响应式 */
 @media (max-width: 1600px) {
   .content-section {
+    grid-template-columns: 300px 1fr 340px;
+  }
+}
+
+@media (max-width: 1400px) {
+  .content-section {
     grid-template-columns: 280px 1fr 320px;
   }
 }
@@ -1217,6 +1302,8 @@ onUnmounted(() => {
   .content-section {
     grid-template-columns: 1fr;
     grid-template-rows: auto auto auto;
+    height: auto;
+    min-height: calc(100vh - 170px);
   }
   
   .left-panel,
@@ -1224,6 +1311,15 @@ onUnmounted(() => {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 15px;
+    height: auto;
+  }
+  
+  .center-panel {
+    height: auto;
+  }
+  
+  .chart-box {
+    min-height: 400px;
   }
 }
 </style>

@@ -17,6 +17,7 @@ export const getHistoryMetrics = (params: {
   start?: string
   end?: string
   interval?: string
+  mountpoint?: string  // 磁盘专用参数
 }) => {
   return request<ApiResponse<MetricPoint[]>>({
     url: '/v1/metrics/history',

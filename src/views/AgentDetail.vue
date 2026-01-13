@@ -40,141 +40,215 @@
       </template>
 
       <el-row :gutter="20">
-        <el-col :xs="24" :sm="12">
-          <div class="metric-card">
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="metric-card metric-card-cpu">
             <div class="metric-header">
-              <el-icon color="#409EFF" :size="24"><CpuIcon /></el-icon>
-              <span>CPU</span>
+              <div class="metric-icon-wrapper cpu-icon">
+                <el-icon :size="28"><CpuIcon /></el-icon>
+              </div>
+              <span class="metric-title">CPU</span>
             </div>
-            <div class="metric-value">{{ (latestMetrics.cpu?.usage_percent ?? 0).toFixed(1) }}%</div>
-            <el-divider />
+            <div class="metric-value-wrapper">
+              <div class="metric-value">{{ (latestMetrics.cpu?.usage_percent ?? 0).toFixed(1) }}%</div>
+              <el-progress 
+                :percentage="Math.min(latestMetrics.cpu?.usage_percent || 0, 100)"
+                :color="getCpuColor(latestMetrics.cpu?.usage_percent || 0)"
+                :stroke-width="8"
+                :show-text="false"
+                class="metric-progress"
+              />
+            </div>
             <div class="metric-details">
               <div class="detail-item">
-                <span>负载（1分钟）</span>
-                <span>{{ (latestMetrics.cpu?.load_avg_1 ?? 0).toFixed(2) }}</span>
+                <span class="detail-label">负载（1分钟）</span>
+                <span class="detail-value">{{ (latestMetrics.cpu?.load_avg_1 ?? 0).toFixed(2) }}</span>
               </div>
               <div class="detail-item">
-                <span>负载（5分钟）</span>
-                <span>{{ (latestMetrics.cpu?.load_avg_5 ?? 0).toFixed(2) }}</span>
+                <span class="detail-label">负载（5分钟）</span>
+                <span class="detail-value">{{ (latestMetrics.cpu?.load_avg_5 ?? 0).toFixed(2) }}</span>
               </div>
               <div class="detail-item">
-                <span>核心数</span>
-                <span>{{ latestMetrics.cpu?.core_count || 0 }}</span>
+                <span class="detail-label">核心数</span>
+                <span class="detail-value">{{ latestMetrics.cpu?.core_count || 0 }}</span>
               </div>
             </div>
           </div>
         </el-col>
-        <el-col :xs="24" :sm="12">
-          <div class="metric-card">
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="metric-card metric-card-memory">
             <div class="metric-header">
-              <el-icon color="#F56C6C" :size="24"><MemoryIcon /></el-icon>
-              <span>内存</span>
+              <div class="metric-icon-wrapper memory-icon">
+                <el-icon :size="28"><MemoryIcon /></el-icon>
+              </div>
+              <span class="metric-title">内存</span>
             </div>
-            <div class="metric-value">{{ (latestMetrics.memory?.used_percent ?? 0).toFixed(1) }}%</div>
-            <el-divider />
+            <div class="metric-value-wrapper">
+              <div class="metric-value">{{ (latestMetrics.memory?.used_percent ?? 0).toFixed(1) }}%</div>
+              <el-progress 
+                :percentage="Math.min(latestMetrics.memory?.used_percent || 0, 100)"
+                :color="getMemoryColor(latestMetrics.memory?.used_percent || 0)"
+                :stroke-width="8"
+                :show-text="false"
+                class="metric-progress"
+              />
+            </div>
             <div class="metric-details">
               <div class="detail-item">
-                <span>总计</span>
-                <span>{{ formatBytes(latestMetrics.memory?.total) }}</span>
+                <span class="detail-label">总计</span>
+                <span class="detail-value">{{ formatBytes(latestMetrics.memory?.total) }}</span>
               </div>
               <div class="detail-item">
-                <span>已用</span>
-                <span>{{ formatBytes(latestMetrics.memory?.used) }}</span>
+                <span class="detail-label">已用</span>
+                <span class="detail-value highlight-used">{{ formatBytes(latestMetrics.memory?.used) }}</span>
               </div>
               <div class="detail-item">
-                <span>可用</span>
-                <span>{{ formatBytes(latestMetrics.memory?.available) }}</span>
+                <span class="detail-label">可用</span>
+                <span class="detail-value highlight-available">{{ formatBytes(latestMetrics.memory?.available) }}</span>
               </div>
+            </div>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="metric-card metric-card-network">
+            <div class="metric-header">
+              <div class="metric-icon-wrapper network-icon">
+                <el-icon :size="28"><NetworkIcon /></el-icon>
+              </div>
+              <span class="metric-title">网络</span>
+            </div>
+            <div class="metric-value-wrapper">
+              <div class="metric-value-small">{{ formatBytes(latestMetrics.network?.bytes_recv || 0) }}</div>
+            </div>
+            <div class="metric-details">
+              <div class="detail-item">
+                <span class="detail-label">发送</span>
+                <span class="detail-value">{{ formatBytes(latestMetrics.network?.bytes_sent || 0) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">接收</span>
+                <span class="detail-value">{{ formatBytes(latestMetrics.network?.bytes_recv || 0) }}</span>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">错误</span>
+                <span class="detail-value">{{ (latestMetrics.network?.errin || 0) + (latestMetrics.network?.errout || 0) }}</span>
+              </div>
+            </div>
+          </div>
+        </el-col>
+        <el-col :xs="24" :sm="12" :lg="6">
+          <div class="metric-card metric-card-disk-summary">
+            <div class="metric-header">
+              <div class="metric-icon-wrapper disk-icon">
+                <el-icon :size="28"><DiskIcon /></el-icon>
+              </div>
+              <span class="metric-title">磁盘概览</span>
+            </div>
+            <div class="metric-value-wrapper" v-if="diskPartitions.length > 0">
+              <div class="metric-value-small">
+                {{ diskPartitions.length }} 个分区
+              </div>
+              <div class="disk-summary-info">
+                <div class="summary-item" v-for="part in diskPartitions.slice(0, 2)" :key="part.mountpoint || part._mountpoint">
+                  <span class="summary-mountpoint">{{ part.mountpoint || part._mountpoint || '未知' }}</span>
+                  <el-progress 
+                    :percentage="Math.min(part.used_percent || 0, 100)"
+                    :color="getDiskColor(part.used_percent || 0)"
+                    :stroke-width="4"
+                    :show-text="false"
+                    class="summary-progress"
+                  />
+                  <span class="summary-percent">{{ (part.used_percent || 0).toFixed(1) }}%</span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="no-data-small">
+              <span>暂无数据</span>
             </div>
           </div>
         </el-col>
       </el-row>
 
       <el-row :gutter="20" style="margin-top: 20px">
-        <el-col :xs="24" :sm="12">
-          <div class="metric-card">
+        <el-col :xs="24">
+          <div class="metric-card disk-detail-card">
             <div class="metric-header">
-              <el-icon color="#E6A23C" :size="24"><DiskIcon /></el-icon>
-              <span>磁盘</span>
-              <el-select 
-                v-if="diskPartitions.length > 1" 
-                v-model="selectedDiskPartition" 
-                size="small" 
-                style="width: 150px; margin-left: 10px"
-                @change="updateDiskDisplay"
+              <div class="metric-icon-wrapper disk-icon">
+                <el-icon :size="24"><DiskIcon /></el-icon>
+              </div>
+              <span class="metric-title">磁盘使用情况</span>
+            </div>
+            
+            <div v-if="diskPartitions.length > 0" class="disk-partitions-list">
+              <div 
+                v-for="part in diskPartitions" 
+                :key="part.mountpoint || part._mountpoint"
+                class="partition-card"
               >
-                <el-option
-                  v-for="part in diskPartitions"
-                  :key="part.mountpoint"
-                  :label="part.mountpoint || '未知'"
-                  :value="part.mountpoint"
-                />
-              </el-select>
+                <div class="partition-header">
+                  <div class="mountpoint-info">
+                    <el-icon class="mountpoint-icon"><Folder /></el-icon>
+                    <div class="mountpoint-text">
+                      <strong class="mountpoint-name">{{ part.mountpoint || part._mountpoint || '未知' }}</strong>
+                      <span class="mountpoint-device">{{ part.device || '-' }}</span>
+                    </div>
+                  </div>
+                  <el-tag :type="getDiskTagType(part.used_percent || 0)" size="large" class="usage-tag">
+                    {{ (part.used_percent || 0).toFixed(1) }}%
+                  </el-tag>
+                </div>
+                
+                <div class="progress-wrapper">
+                  <el-progress 
+                    :percentage="Math.min(part.used_percent || 0, 100)"
+                    :color="getDiskColor(part.used_percent || 0)"
+                    :stroke-width="12"
+                    :show-text="false"
+                    class="partition-progress"
+                  />
+                </div>
+                
+                <div class="partition-details">
+                  <div class="detail-item">
+                    <span class="detail-label">文件系统</span>
+                    <span class="detail-value">{{ part.fstype || '-' }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">总计</span>
+                    <span class="detail-value">{{ formatBytes(part.total) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">已用</span>
+                    <span class="detail-value highlight-used">{{ formatBytes(part.used) }}</span>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">可用</span>
+                    <span class="detail-value highlight-available">{{ formatBytes(part.free) }}</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="metric-value">
-              {{ getDiskUsedPercent() }}%
-            </div>
-            <el-divider />
-            <div class="metric-details">
-              <div class="detail-item">
-                <span>挂载点</span>
-                <span>{{ currentDiskData?._mountpoint || '/' }}</span>
-              </div>
-              <div class="detail-item">
-                <span>总计</span>
-                <span>{{ formatBytes(currentDiskData?.total) }}</span>
-              </div>
-              <div class="detail-item">
-                <span>已用</span>
-                <span>{{ formatBytes(currentDiskData?.used) }}</span>
-              </div>
-              <div class="detail-item">
-                <span>可用</span>
-                <span>{{ formatBytes(currentDiskData?.free) }}</span>
-              </div>
-              <div v-if="diskPartitions.length > 1" class="detail-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ebeef5;">
-                <span style="font-size: 12px; color: #909399;">其他分区 ({{ diskPartitions.length - 1 }})</span>
-              </div>
-            </div>
-          </div>
-        </el-col>
-        <el-col :xs="24" :sm="12">
-          <div class="metric-card">
-            <div class="metric-header">
-              <el-icon color="#409EFF" :size="24"><NetworkIcon /></el-icon>
-              <span>网络</span>
-            </div>
-            <div class="metric-value">
-              {{ formatBytes(latestMetrics.network?.bytes_recv || 0) }}
-            </div>
-            <el-divider />
-            <div class="metric-details">
-              <div class="detail-item">
-                <span>发送</span>
-                <span>{{ formatBytes(latestMetrics.network?.bytes_sent || 0) }}</span>
-              </div>
-              <div class="detail-item">
-                <span>接收</span>
-                <span>{{ formatBytes(latestMetrics.network?.bytes_recv || 0) }}</span>
-              </div>
-              <div class="detail-item">
-                <span>错误</span>
-                <span>{{ (latestMetrics.network?.errin || 0) + (latestMetrics.network?.errout || 0) }}</span>
-              </div>
+            
+            <div v-else class="no-data">
+              <el-empty description="暂无磁盘数据" :image-size="80" />
             </div>
           </div>
         </el-col>
       </el-row>
     </el-card>
 
-    <!-- 历史趋势图 -->
-    <el-row :gutter="20" style="margin-top: 20px">
+    <!-- 历史趋势图 - 两两一排布局 -->
+    <!-- 第一行：CPU 和 内存 -->
+    <el-row :gutter="20" style="margin-top: 24px">
+      <!-- CPU使用率趋势 -->
       <el-col :xs="24" :lg="12">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>CPU使用率趋势</span>
-              <el-select v-model="timeRange" @change="fetchHistory" style="width: 120px">
+              <div class="chart-title">
+                <el-icon color="#409EFF" :size="20" style="margin-right: 8px"><CpuIcon /></el-icon>
+                <span>CPU使用率趋势</span>
+              </div>
+              <el-select v-model="timeRange" @change="fetchHistory" size="small" style="width: 120px">
                 <el-option label="1小时" value="-1h" />
                 <el-option label="6小时" value="-6h" />
                 <el-option label="24小时" value="-24h" />
@@ -182,15 +256,22 @@
               </el-select>
             </div>
           </template>
-          <CPUHistoryChart :data="cpuHistory" :loading="historyLoading" />
+          <div class="chart-container">
+            <CPUHistoryChart :data="cpuHistory" :loading="historyLoading" />
+          </div>
         </el-card>
       </el-col>
+      
+      <!-- 内存使用率趋势 -->
       <el-col :xs="24" :lg="12">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>内存使用率趋势</span>
-              <el-select v-model="timeRange" @change="fetchHistory" style="width: 120px">
+              <div class="chart-title">
+                <el-icon color="#F56C6C" :size="20" style="margin-right: 8px"><MemoryIcon /></el-icon>
+                <span>内存使用率趋势</span>
+              </div>
+              <el-select v-model="timeRange" @change="fetchHistory" size="small" style="width: 120px">
                 <el-option label="1小时" value="-1h" />
                 <el-option label="6小时" value="-6h" />
                 <el-option label="24小时" value="-24h" />
@@ -198,18 +279,37 @@
               </el-select>
             </div>
           </template>
-          <MemoryHistoryChart :data="memoryHistory" :loading="historyLoading" />
+          <div class="chart-container">
+            <MemoryHistoryChart :data="memoryHistory" :loading="historyLoading" />
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
+    <!-- 第二行：磁盘 和 网络 -->
     <el-row :gutter="20" style="margin-top: 20px">
-      <el-col :xs="24" :lg="12">
-        <el-card shadow="hover">
+      <!-- 磁盘使用趋势 - 显示第一个分区（通常是根分区） -->
+      <el-col :xs="24" :lg="12" v-if="diskPartitions.length > 0">
+        <el-card shadow="hover" class="chart-card disk-chart-card">
           <template #header>
             <div class="card-header">
-              <span>磁盘使用趋势</span>
-              <el-select v-model="timeRange" @change="fetchHistory" style="width: 120px">
+              <div class="chart-title">
+                <el-icon color="#E6A23C" :size="20" style="margin-right: 8px"><DiskIcon /></el-icon>
+                <span class="chart-title-text">磁盘使用趋势</span>
+                <el-tag 
+                  :type="getDiskTagType(diskPartitions[0]?.used_percent || 0)" 
+                  size="small" 
+                  style="margin-left: 8px"
+                >
+                  {{ diskPartitions[0]?.mountpoint || diskPartitions[0]?._mountpoint || '未知' }}
+                </el-tag>
+              </div>
+              <el-select 
+                v-model="timeRange" 
+                @change="() => fetchDiskHistory(diskPartitions[0])" 
+                size="small" 
+                style="width: 120px"
+              >
                 <el-option label="1小时" value="-1h" />
                 <el-option label="6小时" value="-6h" />
                 <el-option label="24小时" value="-24h" />
@@ -217,15 +317,26 @@
               </el-select>
             </div>
           </template>
-          <DiskHistoryChart :data="diskHistory" :loading="historyLoading" />
+          <div class="chart-container">
+            <DiskHistoryChart 
+              :data="getDiskHistoryForPartition(diskPartitions[0])" 
+              :loading="historyLoading"
+              :mountpoint="diskPartitions[0]?.mountpoint || diskPartitions[0]?._mountpoint"
+            />
+          </div>
         </el-card>
       </el-col>
+      
+      <!-- 网络流量趋势 -->
       <el-col :xs="24" :lg="12">
-        <el-card shadow="hover">
+        <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
-              <span>网络流量趋势</span>
-              <el-select v-model="timeRange" @change="fetchHistory" style="width: 120px">
+              <div class="chart-title">
+                <el-icon color="#67C23A" :size="20" style="margin-right: 8px"><NetworkIcon /></el-icon>
+                <span>网络流量趋势</span>
+              </div>
+              <el-select v-model="timeRange" @change="fetchHistory" size="small" style="width: 120px">
                 <el-option label="1小时" value="-1h" />
                 <el-option label="6小时" value="-6h" />
                 <el-option label="24小时" value="-24h" />
@@ -233,7 +344,48 @@
               </el-select>
             </div>
           </template>
-          <NetworkHistoryChart :data="networkHistory" :loading="historyLoading" />
+          <div class="chart-container">
+            <NetworkHistoryChart :data="networkHistory" :loading="historyLoading" />
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 其他磁盘分区趋势图（如果有多个分区） -->
+    <el-row :gutter="20" style="margin-top: 20px" v-if="diskPartitions.length > 1">
+      <el-col 
+        v-for="part in diskPartitions.slice(1)" 
+        :key="part.mountpoint || part._mountpoint"
+        :xs="24" 
+        :sm="12"
+        :lg="8"
+        :xl="6"
+      >
+        <el-card shadow="hover" class="chart-card disk-chart-card">
+          <template #header>
+            <div class="card-header">
+              <div class="chart-title">
+                <el-icon color="#E6A23C" :size="18" style="margin-right: 6px"><DiskIcon /></el-icon>
+                <span class="chart-title-text" style="font-size: 14px">磁盘趋势</span>
+                <el-tag :type="getDiskTagType(part.used_percent || 0)" size="small" style="margin-left: 6px; font-size: 11px">
+                  {{ (part.mountpoint || part._mountpoint || '未知').substring(0, 10) }}
+                </el-tag>
+              </div>
+              <el-select v-model="timeRange" @change="() => fetchDiskHistory(part)" size="small" style="width: 100px">
+                <el-option label="1小时" value="-1h" />
+                <el-option label="6小时" value="-6h" />
+                <el-option label="24小时" value="-24h" />
+                <el-option label="7天" value="-7d" />
+              </el-select>
+            </div>
+          </template>
+          <div class="chart-container">
+            <DiskHistoryChart 
+              :data="getDiskHistoryForPartition(part)" 
+              :loading="historyLoading"
+              :mountpoint="part.mountpoint || part._mountpoint"
+            />
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -244,7 +396,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Folder } from '@element-plus/icons-vue'
 import CpuIcon from '@/icons/CpuIcon.vue'
 import MemoryIcon from '@/icons/MemoryIcon.vue'
 import DiskIcon from '@/icons/DiskIcon.vue'
@@ -268,12 +420,10 @@ const agent = ref<Partial<Agent>>({})
 const latestMetrics = ref<any>({})
 const cpuHistory = ref<MetricPoint[]>([])
 const memoryHistory = ref<MetricPoint[]>([])
-const diskHistory = ref<MetricPoint[]>([])
 const networkHistory = ref<MetricPoint[]>([])
 const timeRange = ref('-1h')
-const selectedDiskPartition = ref<string>('')
 const diskPartitions = ref<any[]>([])
-const currentDiskData = ref<any>(null)
+const diskHistoryMap = ref<Record<string, MetricPoint[]>>({})
 
 let timer: any = null
 
@@ -297,6 +447,11 @@ const fetchLatestMetrics = async () => {
     
     // 处理磁盘分区数据
     updateDiskPartitions()
+    
+    // 如果分区数据已更新，获取历史数据
+    if (diskPartitions.value.length > 0) {
+      await fetchAllDiskHistory()
+    }
   } catch (error) {
     console.error('Failed to fetch latest metrics:', error)
   } finally {
@@ -308,68 +463,56 @@ const updateDiskPartitions = () => {
   const disk = latestMetrics.value.disk
   if (!disk || typeof disk !== 'object') {
     diskPartitions.value = []
-    currentDiskData.value = null
     return
   }
   
-  // 构建分区列表
+  // 新格式：disk.partitions 数组
+  if (Array.isArray(disk.partitions)) {
+    diskPartitions.value = disk.partitions
+    return
+  }
+  
+  // 兼容旧格式：单个分区对象或 _partitions 数组
   const partitions: any[] = []
   
-  // 主分区
-  if (disk._mountpoint || disk.total) {
+  // 主分区（旧格式）
+  if (disk.mountpoint || disk._mountpoint || disk.total) {
     partitions.push({
-      mountpoint: disk._mountpoint || '/',
+      mountpoint: disk.mountpoint || disk._mountpoint || '/',
+      device: disk.device,
+      fstype: disk.fstype,
       total: disk.total,
       used: disk.used,
       free: disk.free,
       used_percent: disk.used_percent,
-      ...disk
     })
   }
   
-  // 其他分区
+  // 其他分区（旧格式）
   if (Array.isArray(disk._partitions)) {
     disk._partitions.forEach((part: any) => {
-      if (part._mountpoint) {
+      if (part.mountpoint || part._mountpoint) {
         partitions.push({
-          mountpoint: part._mountpoint,
+          mountpoint: part.mountpoint || part._mountpoint,
+          device: part.device,
+          fstype: part.fstype,
           total: part.total,
           used: part.used,
           free: part.free,
           used_percent: part.used_percent,
-          ...part
         })
       }
     })
   }
   
   diskPartitions.value = partitions
-  
-  // 设置当前选中的分区
-  if (partitions.length > 0) {
-    if (!selectedDiskPartition.value || !partitions.find(p => p.mountpoint === selectedDiskPartition.value)) {
-      selectedDiskPartition.value = partitions[0].mountpoint
-    }
-    updateDiskDisplay()
-  } else {
-    currentDiskData.value = null
-  }
-}
-
-const updateDiskDisplay = () => {
-  const partition = diskPartitions.value.find(p => p.mountpoint === selectedDiskPartition.value)
-  if (partition) {
-    currentDiskData.value = partition
-  } else {
-    currentDiskData.value = latestMetrics.value.disk || null
-  }
 }
 
 const fetchHistory = async () => {
   try {
     historyLoading.value = true
 
-    const [cpuRes, memRes, diskRes, netRes] = await Promise.all([
+    const [cpuRes, memRes, netRes] = await Promise.all([
       getHistoryMetrics({
         host_id: hostId,
         type: 'cpu',
@@ -384,12 +527,6 @@ const fetchHistory = async () => {
       }),
       getHistoryMetrics({
         host_id: hostId,
-        type: 'disk',
-        start: timeRange.value,
-        interval: '1m'
-      }),
-      getHistoryMetrics({
-        host_id: hostId,
         type: 'network',
         start: timeRange.value,
         interval: '1m'
@@ -397,16 +534,18 @@ const fetchHistory = async () => {
     ]) as unknown as [
       ApiResponse<MetricPoint[]>,
       ApiResponse<MetricPoint[]>,
-      ApiResponse<MetricPoint[]>,
       ApiResponse<MetricPoint[]>
     ]
 
     cpuHistory.value = cpuRes.data || []
     memoryHistory.value = memRes.data || []
-    diskHistory.value = diskRes.data || []
     networkHistory.value = netRes.data || []
+    
+    // 为每个磁盘分区获取历史数据
+    await fetchAllDiskHistory()
   } catch (error) {
     console.error('Failed to fetch history:', error)
+    ElMessage.error('获取历史数据失败')
   } finally {
     historyLoading.value = false
   }
@@ -422,20 +561,93 @@ const formatBytes = (bytes: number) => {
   return Math.round(value * 100) / 100 + ' ' + sizes[sizeIndex]
 }
 
-const getDiskUsedPercent = () => {
-  const disk = currentDiskData.value || latestMetrics.value.disk
-  if (!disk || typeof disk !== 'object') return '0.0'
-  const usedPercent = disk.used_percent
-  if (typeof usedPercent === 'number') {
-    return usedPercent.toFixed(1)
+// 获取CPU使用率颜色
+const getCpuColor = (percent: number) => {
+  if (!percent) return '#67c23a'
+  if (percent >= 90) return '#f56c6c'
+  if (percent >= 75) return '#e6a23c'
+  if (percent >= 50) return '#409EFF'
+  return '#67c23a'
+}
+
+// 获取内存使用率颜色
+const getMemoryColor = (percent: number) => {
+  if (!percent) return '#67c23a'
+  if (percent >= 90) return '#f56c6c'
+  if (percent >= 75) return '#e6a23c'
+  if (percent >= 50) return '#409EFF'
+  return '#67c23a'
+}
+
+// 获取磁盘使用率颜色
+const getDiskColor = (percent: number) => {
+  if (!percent) return '#67c23a'
+  if (percent >= 90) return '#f56c6c'  // 红色：危险
+  if (percent >= 75) return '#e6a23c'  // 橙色：警告
+  if (percent >= 50) return '#409EFF'  // 蓝色：注意
+  return '#67c23a'  // 绿色：正常
+}
+
+// 获取磁盘标签类型
+const getDiskTagType = (percent: number) => {
+  if (percent >= 90) return 'danger'
+  if (percent >= 75) return 'warning'
+  return 'success'
+}
+
+// 获取所有磁盘分区的历史数据
+const fetchAllDiskHistory = async () => {
+  if (diskPartitions.value.length === 0) return
+  
+  const promises = diskPartitions.value.map(async (part) => {
+    const mountpoint = part.mountpoint || part._mountpoint
+    if (!mountpoint) return
+    
+    try {
+      const res = await getHistoryMetrics({
+        host_id: hostId,
+        type: 'disk',
+        start: timeRange.value,
+        interval: '1m',
+        mountpoint: mountpoint
+      })
+      diskHistoryMap.value[mountpoint] = res.data || []
+    } catch (error) {
+      console.error(`Failed to fetch disk history for ${mountpoint}:`, error)
+      diskHistoryMap.value[mountpoint] = []
+    }
+  })
+  
+  await Promise.all(promises)
+}
+
+// 获取指定分区的历史数据
+const getDiskHistoryForPartition = (part: any): MetricPoint[] => {
+  const mountpoint = part.mountpoint || part._mountpoint
+  return diskHistoryMap.value[mountpoint] || []
+}
+
+// 获取指定分区的磁盘历史数据
+const fetchDiskHistory = async (part: any) => {
+  const mountpoint = part.mountpoint || part._mountpoint
+  if (!mountpoint) return
+  
+  try {
+    historyLoading.value = true
+    const res = await getHistoryMetrics({
+      host_id: hostId,
+      type: 'disk',
+      start: timeRange.value,
+      interval: '1m',
+      mountpoint: mountpoint
+    })
+    diskHistoryMap.value[mountpoint] = res.data || []
+  } catch (error) {
+    console.error(`Failed to fetch disk history for ${mountpoint}:`, error)
+    ElMessage.error(`获取 ${mountpoint} 历史数据失败`)
+  } finally {
+    historyLoading.value = false
   }
-  // 如果没有 used_percent，尝试计算
-  const total = typeof disk.total === 'number' ? disk.total : 0
-  const used = typeof disk.used === 'number' ? disk.used : 0
-  if (total > 0) {
-    return ((used / total) * 100).toFixed(1)
-  }
-  return '0.0'
 }
 
 onMounted(() => {
@@ -470,52 +682,398 @@ onUnmounted(() => {
 }
 
 .metric-card {
-  padding: 20px;
-  background: #f9fafc;
-  border-radius: 8px;
+  padding: 24px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #409EFF, #67C23A);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.metric-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+.metric-card:hover::before {
+  opacity: 1;
+}
+
+.metric-card-cpu::before {
+  background: linear-gradient(90deg, #409EFF, #66B1FF);
+}
+
+.metric-card-memory::before {
+  background: linear-gradient(90deg, #F56C6C, #F78989);
+}
+
+.metric-card-network::before {
+  background: linear-gradient(90deg, #67C23A, #85CE61);
+}
+
+.metric-card-disk-summary::before {
+  background: linear-gradient(90deg, #E6A23C, #EEBE77);
 }
 
 .metric-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.metric-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.1), rgba(64, 158, 255, 0.05));
+  transition: all 0.3s ease;
+}
+
+.metric-card:hover .metric-icon-wrapper {
+  transform: scale(1.1) rotate(5deg);
+}
+
+.cpu-icon {
+  background: linear-gradient(135deg, rgba(64, 158, 255, 0.15), rgba(64, 158, 255, 0.05));
+  color: #409EFF;
+}
+
+.memory-icon {
+  background: linear-gradient(135deg, rgba(245, 108, 108, 0.15), rgba(245, 108, 108, 0.05));
+  color: #F56C6C;
+}
+
+.network-icon {
+  background: linear-gradient(135deg, rgba(103, 194, 58, 0.15), rgba(103, 194, 58, 0.05));
+  color: #67C23A;
+}
+
+.disk-icon {
+  background: linear-gradient(135deg, rgba(230, 162, 60, 0.15), rgba(230, 162, 60, 0.05));
+  color: #E6A23C;
+}
+
+.metric-title {
   font-size: 16px;
   font-weight: 600;
-  margin-bottom: 16px;
+  color: #303133;
+}
+
+.metric-value-wrapper {
+  margin: 20px 0;
 }
 
 .metric-value {
-  font-size: 48px;
+  font-size: 42px;
+  font-weight: 700;
+  color: #303133;
+  text-align: center;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #303133, #606266);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.metric-value-small {
+  font-size: 20px;
   font-weight: 600;
   color: #303133;
   text-align: center;
-  margin: 20px 0;
+  margin-bottom: 16px;
+}
+
+.metric-progress {
+  margin-top: 8px;
 }
 
 .metric-details {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
+  margin-top: 20px;
 }
 
 .detail-item {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.detail-item:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  color: #909399;
+  font-size: 13px;
+}
+
+.detail-value {
+  color: #303133;
+  font-weight: 600;
   font-size: 14px;
 }
 
-.detail-item span:first-child {
+.highlight-used {
+  color: #E6A23C;
+}
+
+.highlight-available {
+  color: #67C23A;
+}
+
+.disk-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.summary-mountpoint {
+  font-size: 12px;
+  color: #606266;
+  min-width: 40px;
+  font-weight: 500;
+}
+
+.summary-progress {
+  flex: 1;
+}
+
+.summary-percent {
+  font-size: 12px;
+  font-weight: 600;
+  color: #303133;
+  min-width: 40px;
+  text-align: right;
+}
+
+.no-data-small {
+  text-align: center;
+  color: #909399;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.disk-detail-card {
+  padding: 24px;
+}
+
+/* 磁盘分区列表样式 */
+.disk-partitions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.partition-card {
+  padding: 20px;
+  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+  border-radius: 12px;
+  border: 1px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.partition-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #E6A23C, #EEBE77);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.partition-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-color: #E6A23C;
+}
+
+.partition-card:hover::before {
+  opacity: 1;
+}
+
+.partition-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.mountpoint-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.mountpoint-icon {
+  font-size: 20px;
+  color: #E6A23C;
+}
+
+.mountpoint-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mountpoint-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.mountpoint-device {
+  font-size: 12px;
   color: #909399;
 }
 
-.detail-item span:last-child {
+.usage-tag {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 6px 16px;
+}
+
+.progress-wrapper {
+  margin: 16px 0;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.partition-progress {
+  width: 100%;
+}
+
+.partition-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.partition-details .detail-item {
+  border-bottom: none;
+  padding: 0;
+}
+
+.no-data {
+  padding: 60px 0;
+  text-align: center;
+}
+
+.chart-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-2px);
+}
+
+.chart-title {
+  display: flex;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
   color: #303133;
-  font-weight: 500;
+}
+
+.chart-container {
+  padding: 8px 0;
+  min-height: 350px;
+}
+
+/* 图表卡片布局优化 */
+.chart-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card .el-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card .chart-container {
+  flex: 1;
+  min-height: 350px;
+}
+
+.disk-chart-card {
+  transition: all 0.3s ease;
+}
+
+.disk-chart-card:hover {
+  transform: translateY(-2px);
+}
+
+.chart-title-text {
+  margin-right: 8px;
 }
 
 @media (max-width: 768px) {
   .agent-detail-container {
     padding: 10px;
+  }
+  
+  .partition-details {
+    grid-template-columns: 1fr;
+  }
+  
+  .metric-card {
+    margin-bottom: 16px;
+  }
+  
+  .metric-value {
+    font-size: 36px;
+  }
+  
+  .metric-value-small {
+    font-size: 18px;
   }
 }
 </style>

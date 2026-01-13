@@ -3,7 +3,7 @@
 <!-- ============================================ -->
 <template>
   <div v-loading="loading">
-    <div ref="chartRef" style="width: 100%; height: 400px;"></div>
+    <div ref="chartRef" style="width: 100%; height: 100%; min-height: 350px;"></div>
   </div>
 </template>
 
@@ -158,7 +158,11 @@ const updateChart = () => {
     legend: {
       data: ['使用率', '已用', '总计'],
       top: 10,
-      left: 'center'
+      left: 'center',
+      textStyle: {
+        fontSize: 12
+      },
+      itemGap: 20
     },
     grid: {
       left: '3%',
@@ -170,7 +174,11 @@ const updateChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: times
+      data: times,
+      axisLabel: {
+        fontSize: 12,
+        rotate: 0
+      }
     },
     yAxis: [
       {
@@ -179,6 +187,7 @@ const updateChart = () => {
         position: 'left',
         max: 100,
         axisLabel: {
+          fontSize: 12,
           formatter: (value: any) => {
             const numValue = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, '')) || 0
             if (isNaN(numValue) || !isFinite(numValue)) {
@@ -193,6 +202,7 @@ const updateChart = () => {
         name: '内存 (GB)',
         position: 'right',
         axisLabel: {
+          fontSize: 12,
           formatter: (value: any) => {
             // 确保值是数字，处理带逗号的字符串
             let numValue = 0
