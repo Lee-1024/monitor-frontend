@@ -16,6 +16,7 @@ const props = defineProps<{
   data: Array<{ timestamp: string; values: Record<string, number> }>
   loading?: boolean
   mountpoint?: string
+  mountpoints?: string[]  // 多个挂载点
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -31,6 +32,14 @@ const formatBytes = (bytes: number) => {
   return Math.round(value * 100) / 100 + ' ' + sizes[sizeIndex]
 }
 
+// 将十六进制颜色转换为 rgba 格式
+const hexToRgba = (hex: string, alpha: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 const initChart = () => {
   if (!chartRef.value) return
 
@@ -42,6 +51,158 @@ const updateChart = () => {
   if (!chart) return
 
   const times = props.data.map(item => dayjs(item.timestamp).format('HH:mm'))
+  
+  // 如果提供了多个挂载点，为每个挂载点创建一条线
+  if (props.mountpoints && props.mountpoints.length > 0) {
+    const series: any[] = []
+    const colors = [
+      '#E6A23C', '#409EFF', '#67C23A', '#F56C6C', '#909399',
+      '#E4E7ED', '#C0C4CC', '#606266', '#303133', '#FFD700'
+    ]
+    
+    props.mountpoints.forEach((mountpoint, index) => {
+      const usedPercent = props.data.map(item => item.values[`${mountpoint}_used_percent`] || 0)
+      const color = colors[index % colors.length]
+      
+      series.push({
+        name: `${mountpoint} - 使用率`,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        data: usedPercent,
+        yAxisIndex: 0,
+        itemStyle: {
+          color: color,
+          borderWidth: 2,
+          borderColor: '#fff'
+        },
+        lineStyle: {
+          width: 2.5,
+          color: color
+        },
+        areaStyle: {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: hexToRgba(color, 0.4) },
+            { offset: 0.5, color: hexToRgba(color, 0.2) },
+            { offset: 1, color: hexToRgba(color, 0.05) }
+          ])
+        },
+        emphasis: {
+          focus: 'series',
+          itemStyle: {
+            borderWidth: 3,
+            shadowBlur: 10,
+            shadowColor: hexToRgba(color, 0.5)
+          }
+        }
+      })
+    })
+    
+    const option = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(50, 50, 50, 0.9)',
+        borderColor: '#E6A23C',
+        borderWidth: 1,
+        textStyle: {
+          color: '#fff',
+          fontSize: 12
+        },
+        axisPointer: {
+          type: 'cross',
+          crossStyle: {
+            color: '#E6A23C'
+          }
+        },
+        formatter: (params: any) => {
+          let result = `<div style="font-weight: 600; margin-bottom: 4px;">${params[0].axisValue}</div>`
+          params.forEach((item: any) => {
+            const numValue = typeof item.value === 'number' ? item.value : parseFloat(item.value) || 0
+            result += `<div style="margin: 2px 0;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
+          })
+          return result
+        }
+      },
+      legend: {
+        data: series.map(s => s.name),
+        top: 10,
+        left: 'center',
+        textStyle: {
+          color: '#606266',
+          fontSize: 11
+        },
+        itemGap: 15,
+        type: 'scroll'
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '8%',
+        top: '20%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: times,
+        axisLine: {
+          lineStyle: {
+            color: '#E4E7ED'
+          }
+        },
+        axisLabel: {
+          color: '#909399',
+          fontSize: 11
+        },
+        splitLine: {
+          show: false
+        }
+      },
+      yAxis: [
+        {
+          type: 'value',
+          name: '使用率 (%)',
+          position: 'left',
+          max: 100,
+          nameTextStyle: {
+            color: '#E6A23C',
+            fontSize: 12,
+            fontWeight: 600
+          },
+          axisLine: {
+            lineStyle: {
+              color: '#E6A23C'
+            }
+          },
+          axisLabel: {
+            color: '#E6A23C',
+            fontSize: 12,
+            formatter: (value: any) => {
+              const numValue = typeof value === 'number' ? value : parseFloat(String(value).replace(/,/g, '')) || 0
+              if (isNaN(numValue) || !isFinite(numValue)) {
+                return '0%'
+              }
+              return numValue.toFixed(1) + '%'
+            }
+          },
+          splitLine: {
+            lineStyle: {
+              color: '#F0F0F0',
+              type: 'dashed'
+            }
+          }
+        }
+      ],
+      series: series
+    }
+    
+    chart.setOption(option)
+    return
+  }
+  
+  // 原有单挂载点逻辑
   const usedPercent = props.data.map(item => item.values.used_percent || 0)
   const used = props.data.map(item => item.values.used || 0)
   const total = props.data.map(item => item.values.total || 0)
@@ -336,7 +497,7 @@ const updateChart = () => {
 }
 
 watch(
-  () => props.data,
+  () => [props.data, props.mountpoints],
   () => {
     updateChart()
   },

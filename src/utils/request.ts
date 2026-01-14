@@ -19,7 +19,61 @@ let requests: Array<(token: string) => void> = []
 
 // 请求拦截器
 service.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
+  async (config: InternalAxiosRequestConfig) => {
+    // 检查 token 是否过期
+    const tokenExpireTime = localStorage.getItem('token_expire_time')
+    if (tokenExpireTime) {
+      const expireTime = parseInt(tokenExpireTime, 10)
+      if (Date.now() >= expireTime) {
+        // token 已过期，尝试刷新
+        const refreshToken = localStorage.getItem('refresh_token')
+        if (refreshToken) {
+          try {
+            const refreshResponse = await axios.post(
+              `${import.meta.env.VITE_API_BASE_URL || '/api'}/v1/auth/refresh`,
+              { refresh_token: refreshToken }
+            )
+            
+            if (refreshResponse.data.code === 200 && refreshResponse.data.data) {
+              const newToken = refreshResponse.data.data.token
+              const newRefreshToken = refreshResponse.data.data.refresh_token
+              const newExpireTime = Date.now() + (refreshResponse.data.data.expires_in * 1000)
+              
+              localStorage.setItem('token', newToken)
+              localStorage.setItem('refresh_token', newRefreshToken)
+              localStorage.setItem('token_expire_time', newExpireTime.toString())
+              
+              // 使用新 token
+              if (config.headers) {
+                config.headers.Authorization = `Bearer ${newToken}`
+              }
+              return config
+            }
+          } catch (refreshError) {
+            // 刷新失败，清除 token 并跳转到登录页
+            localStorage.removeItem('token')
+            localStorage.removeItem('refresh_token')
+            localStorage.removeItem('token_expire_time')
+            if (router.currentRoute.value.path !== '/login') {
+              ElMessage.error('登录已过期，请重新登录')
+              router.push('/login')
+            }
+            return Promise.reject(refreshError)
+          }
+        } else {
+          // 没有 refresh token，清除并跳转
+          localStorage.removeItem('token')
+          localStorage.removeItem('refresh_token')
+          localStorage.removeItem('token_expire_time')
+          if (router.currentRoute.value.path !== '/login') {
+            ElMessage.error('登录已过期，请重新登录')
+            router.push('/login')
+          }
+          return Promise.reject(new Error('Token expired'))
+        }
+      }
+    }
+    
     // 添加token到请求头
     const token = localStorage.getItem('token')
     if (token && config.headers) {
@@ -81,9 +135,11 @@ service.interceptors.response.use(
           if (refreshResponse.data.code === 200 && refreshResponse.data.data) {
             const newToken = refreshResponse.data.data.token
             const newRefreshToken = refreshResponse.data.data.refresh_token
+            const newExpireTime = Date.now() + (refreshResponse.data.data.expires_in * 1000)
             
             localStorage.setItem('token', newToken)
             localStorage.setItem('refresh_token', newRefreshToken)
+            localStorage.setItem('token_expire_time', newExpireTime.toString())
             
             // 处理队列中的请求
             requests.forEach((cb) => cb(newToken))

@@ -25,8 +25,10 @@ export interface AlertRule {
   description: string
   enabled: boolean
   severity: 'critical' | 'warning' | 'info'
-  metric_type: 'cpu' | 'memory' | 'disk' | 'network'
+  metric_type: 'cpu' | 'memory' | 'disk' | 'network' | 'host_down' | 'service_port'
   host_id: string
+  mountpoint?: string  // 挂载点（仅用于 disk 指标）
+  service_port?: number  // 服务端口（仅用于 service_port 指标）
   condition: 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq'
   threshold: number
   duration: number

@@ -170,68 +170,69 @@
 
       <el-row :gutter="20" style="margin-top: 20px">
         <el-col :xs="24">
-          <div class="metric-card disk-detail-card">
-            <div class="metric-header">
-              <div class="metric-icon-wrapper disk-icon">
-                <el-icon :size="24"><DiskIcon /></el-icon>
+          <el-card shadow="hover" v-loading="metricsLoading">
+            <template #header>
+              <div class="card-header">
+                <div class="chart-title">
+                  <el-icon color="#E6A23C" :size="20" style="margin-right: 8px"><DiskIcon /></el-icon>
+                  <span>磁盘使用情况</span>
+                </div>
               </div>
-              <span class="metric-title">磁盘使用情况</span>
-            </div>
+            </template>
             
-            <div v-if="diskPartitions.length > 0" class="disk-partitions-list">
-              <div 
-                v-for="part in diskPartitions" 
-                :key="part.mountpoint || part._mountpoint"
-                class="partition-card"
-              >
-                <div class="partition-header">
-                  <div class="mountpoint-info">
-                    <el-icon class="mountpoint-icon"><Folder /></el-icon>
-                    <div class="mountpoint-text">
-                      <strong class="mountpoint-name">{{ part.mountpoint || part._mountpoint || '未知' }}</strong>
-                      <span class="mountpoint-device">{{ part.device || '-' }}</span>
+            <div v-if="diskPartitions.length > 0">
+              <el-table :data="diskPartitions" stripe style="width: 100%" size="default">
+                <el-table-column prop="mountpoint" label="挂载点" width="200" fixed="left">
+                  <template #default="{ row }">
+                    <div style="display: flex; align-items: center; gap: 8px">
+                      <el-icon color="#E6A23C"><Folder /></el-icon>
+                      <strong style="color: #303133">{{ row.mountpoint || row._mountpoint || '未知' }}</strong>
                     </div>
-                  </div>
-                  <el-tag :type="getDiskTagType(part.used_percent || 0)" size="large" class="usage-tag">
-                    {{ (part.used_percent || 0).toFixed(1) }}%
-                  </el-tag>
-                </div>
-                
-                <div class="progress-wrapper">
-                  <el-progress 
-                    :percentage="Math.min(part.used_percent || 0, 100)"
-                    :color="getDiskColor(part.used_percent || 0)"
-                    :stroke-width="12"
-                    :show-text="false"
-                    class="partition-progress"
-                  />
-                </div>
-                
-                <div class="partition-details">
-                  <div class="detail-item">
-                    <span class="detail-label">文件系统</span>
-                    <span class="detail-value">{{ part.fstype || '-' }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">总计</span>
-                    <span class="detail-value">{{ formatBytes(part.total) }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">已用</span>
-                    <span class="detail-value highlight-used">{{ formatBytes(part.used) }}</span>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">可用</span>
-                    <span class="detail-value highlight-available">{{ formatBytes(part.free) }}</span>
-                  </div>
-                </div>
-              </div>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="device" label="设备" width="150" />
+                <el-table-column prop="fstype" label="文件系统" width="120" />
+                <el-table-column label="使用率" width="250">
+                  <template #default="{ row }">
+                    <div style="display: flex; align-items: center; gap: 12px">
+                      <el-progress 
+                        :percentage="Math.min(row.used_percent || 0, 100)"
+                        :color="getDiskColor(row.used_percent || 0)"
+                        :stroke-width="10"
+                        :show-text="false"
+                        style="flex: 1"
+                      />
+                      <el-tag 
+                        :type="getDiskTagType(row.used_percent || 0)" 
+                        size="default"
+                        style="min-width: 60px; text-align: center; font-weight: 600"
+                      >
+                        {{ (row.used_percent || 0).toFixed(1) }}%
+                      </el-tag>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="已用/总计" width="220">
+                  <template #default="{ row }">
+                    <div style="display: flex; align-items: center; gap: 4px">
+                      <span style="color: #F56C6C; font-weight: 600">{{ formatBytes(row.used) }}</span>
+                      <span style="color: #909399">/</span>
+                      <span style="color: #606266">{{ formatBytes(row.total) }}</span>
+                    </div>
+                  </template>
+                </el-table-column>
+                <el-table-column label="可用" width="150">
+                  <template #default="{ row }">
+                    <span style="color: #67C23A; font-weight: 500">{{ formatBytes(row.free) }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
             </div>
             
             <div v-else class="no-data">
               <el-empty description="暂无磁盘数据" :image-size="80" />
             </div>
-          </div>
+          </el-card>
         </el-col>
       </el-row>
     </el-card>
@@ -288,7 +289,7 @@
 
     <!-- 第二行：磁盘 和 网络 -->
     <el-row :gutter="20" style="margin-top: 20px">
-      <!-- 磁盘使用趋势 - 显示第一个分区（通常是根分区） -->
+      <!-- 磁盘使用趋势 - 所有挂载点在一个图表中 -->
       <el-col :xs="24" :lg="12" v-if="diskPartitions.length > 0">
         <el-card shadow="hover" class="chart-card disk-chart-card">
           <template #header>
@@ -296,17 +297,13 @@
               <div class="chart-title">
                 <el-icon color="#E6A23C" :size="20" style="margin-right: 8px"><DiskIcon /></el-icon>
                 <span class="chart-title-text">磁盘使用趋势</span>
-                <el-tag 
-                  :type="getDiskTagType(diskPartitions[0]?.used_percent || 0)" 
-                  size="small" 
-                  style="margin-left: 8px"
-                >
-                  {{ diskPartitions[0]?.mountpoint || diskPartitions[0]?._mountpoint || '未知' }}
+                <el-tag size="small" style="margin-left: 8px" type="info">
+                  {{ diskPartitions.length }} 个挂载点
                 </el-tag>
               </div>
               <el-select 
                 v-model="timeRange" 
-                @change="() => fetchDiskHistory(diskPartitions[0])" 
+                @change="fetchAllDiskHistory" 
                 size="small" 
                 style="width: 120px"
               >
@@ -319,9 +316,9 @@
           </template>
           <div class="chart-container">
             <DiskHistoryChart 
-              :data="getDiskHistoryForPartition(diskPartitions[0])" 
+              :data="allDiskHistory" 
               :loading="historyLoading"
-              :mountpoint="diskPartitions[0]?.mountpoint || diskPartitions[0]?._mountpoint"
+              :mountpoints="diskPartitions.map(p => p.mountpoint || p._mountpoint)"
             />
           </div>
         </el-card>
@@ -346,45 +343,6 @@
           </template>
           <div class="chart-container">
             <NetworkHistoryChart :data="networkHistory" :loading="historyLoading" />
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 其他磁盘分区趋势图（如果有多个分区） -->
-    <el-row :gutter="20" style="margin-top: 20px" v-if="diskPartitions.length > 1">
-      <el-col 
-        v-for="part in diskPartitions.slice(1)" 
-        :key="part.mountpoint || part._mountpoint"
-        :xs="24" 
-        :sm="12"
-        :lg="8"
-        :xl="6"
-      >
-        <el-card shadow="hover" class="chart-card disk-chart-card">
-          <template #header>
-            <div class="card-header">
-              <div class="chart-title">
-                <el-icon color="#E6A23C" :size="18" style="margin-right: 6px"><DiskIcon /></el-icon>
-                <span class="chart-title-text" style="font-size: 14px">磁盘趋势</span>
-                <el-tag :type="getDiskTagType(part.used_percent || 0)" size="small" style="margin-left: 6px; font-size: 11px">
-                  {{ (part.mountpoint || part._mountpoint || '未知').substring(0, 10) }}
-                </el-tag>
-              </div>
-              <el-select v-model="timeRange" @change="() => fetchDiskHistory(part)" size="small" style="width: 100px">
-                <el-option label="1小时" value="-1h" />
-                <el-option label="6小时" value="-6h" />
-                <el-option label="24小时" value="-24h" />
-                <el-option label="7天" value="-7d" />
-              </el-select>
-            </div>
-          </template>
-          <div class="chart-container">
-            <DiskHistoryChart 
-              :data="getDiskHistoryForPartition(part)" 
-              :loading="historyLoading"
-              :mountpoint="part.mountpoint || part._mountpoint"
-            />
           </div>
         </el-card>
       </el-col>
@@ -424,6 +382,7 @@ const networkHistory = ref<MetricPoint[]>([])
 const timeRange = ref('-1h')
 const diskPartitions = ref<any[]>([])
 const diskHistoryMap = ref<Record<string, MetricPoint[]>>({})
+const allDiskHistory = ref<Array<{ timestamp: string; values: Record<string, number> }>>([])
 
 let timer: any = null
 
@@ -541,7 +500,7 @@ const fetchHistory = async () => {
     memoryHistory.value = memRes.data || []
     networkHistory.value = netRes.data || []
     
-    // 为每个磁盘分区获取历史数据
+    // 为每个磁盘分区获取历史数据（合并显示）
     await fetchAllDiskHistory()
   } catch (error) {
     console.error('Failed to fetch history:', error)
@@ -595,56 +554,67 @@ const getDiskTagType = (percent: number) => {
   return 'success'
 }
 
-// 获取所有磁盘分区的历史数据
+// 获取所有磁盘分区的历史数据并合并
 const fetchAllDiskHistory = async () => {
-  if (diskPartitions.value.length === 0) return
-  
-  const promises = diskPartitions.value.map(async (part) => {
-    const mountpoint = part.mountpoint || part._mountpoint
-    if (!mountpoint) return
-    
-    try {
-      const res = await getHistoryMetrics({
-        host_id: hostId,
-        type: 'disk',
-        start: timeRange.value,
-        interval: '1m',
-        mountpoint: mountpoint
-      })
-      diskHistoryMap.value[mountpoint] = res.data || []
-    } catch (error) {
-      console.error(`Failed to fetch disk history for ${mountpoint}:`, error)
-      diskHistoryMap.value[mountpoint] = []
-    }
-  })
-  
-  await Promise.all(promises)
-}
-
-// 获取指定分区的历史数据
-const getDiskHistoryForPartition = (part: any): MetricPoint[] => {
-  const mountpoint = part.mountpoint || part._mountpoint
-  return diskHistoryMap.value[mountpoint] || []
-}
-
-// 获取指定分区的磁盘历史数据
-const fetchDiskHistory = async (part: any) => {
-  const mountpoint = part.mountpoint || part._mountpoint
-  if (!mountpoint) return
+  if (diskPartitions.value.length === 0) {
+    allDiskHistory.value = []
+    return
+  }
   
   try {
     historyLoading.value = true
-    const res = await getHistoryMetrics({
-      host_id: hostId,
-      type: 'disk',
-      start: timeRange.value,
-      interval: '1m',
-      mountpoint: mountpoint
+    
+    // 获取所有挂载点的历史数据
+    const promises = diskPartitions.value.map(async (part) => {
+      const mountpoint = part.mountpoint || part._mountpoint
+      if (!mountpoint) return null
+      
+      try {
+        const res = await getHistoryMetrics({
+          host_id: hostId,
+          type: 'disk',
+          start: timeRange.value,
+          interval: '1m',
+          mountpoint: mountpoint
+        })
+        diskHistoryMap.value[mountpoint] = res.data || []
+        return { mountpoint, data: res.data || [] }
+      } catch (error) {
+        console.error(`Failed to fetch disk history for ${mountpoint}:`, error)
+        diskHistoryMap.value[mountpoint] = []
+        return { mountpoint, data: [] }
+      }
     })
-    diskHistoryMap.value[mountpoint] = res.data || []
+    
+    const results = await Promise.all(promises)
+    const validResults = results.filter(r => r !== null) as Array<{ mountpoint: string; data: MetricPoint[] }>
+    
+    // 合并所有挂载点的数据
+    const timeMap = new Map<string, Record<string, number>>()
+    
+    validResults.forEach(({ mountpoint, data }) => {
+      data.forEach((point: MetricPoint) => {
+        const timestamp = point.timestamp
+        if (!timeMap.has(timestamp)) {
+          timeMap.set(timestamp, {})
+        }
+        const values = timeMap.get(timestamp)!
+        // 为每个挂载点存储使用率
+        values[`${mountpoint}_used_percent`] = point.values.used_percent || 0
+        values[`${mountpoint}_used`] = point.values.used || 0
+        values[`${mountpoint}_total`] = point.values.total || 0
+      })
+    })
+    
+    // 转换为数组格式并按时间排序
+    allDiskHistory.value = Array.from(timeMap.entries())
+      .map(([timestamp, values]) => ({ timestamp, values }))
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    
   } catch (error) {
-    console.error(`Failed to fetch disk history for ${mountpoint}:`, error)
-    ElMessage.error(`获取 ${mountpoint} 历史数据失败`)
+    console.error('Failed to fetch all disk history:', error)
+    ElMessage.error('获取磁盘历史数据失败')
+    allDiskHistory.value = []
   } finally {
     historyLoading.value = false
   }

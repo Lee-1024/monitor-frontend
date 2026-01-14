@@ -31,7 +31,21 @@
       >
         <el-table-column prop="host_id" label="主机ID" width="150" />
         <el-table-column prop="name" label="服务名称" width="200" />
-        <el-table-column label="状态" width="120">
+        <el-table-column label="端口" width="100">
+          <template #default="{ row }">
+            <span v-if="row.port">{{ row.port }}</span>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="端口状态" width="120">
+          <template #default="{ row }">
+            <el-tag v-if="row.port" :type="row.port_accessible ? 'success' : 'danger'">
+              {{ row.port_accessible ? '可访问' : '不可访问' }}
+            </el-tag>
+            <span v-else style="color: #909399;">-</span>
+          </template>
+        </el-table-column>
+        <el-table-column label="服务状态" width="120">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
               {{ getStatusText(row.status) }}
@@ -78,6 +92,8 @@ interface ServiceInfo {
   enabled: boolean
   description: string
   uptime_seconds: number
+  port?: number              // 服务端口（可选）
+  port_accessible?: boolean  // 端口是否可访问（可选）
 }
 
 const loading = ref(false)

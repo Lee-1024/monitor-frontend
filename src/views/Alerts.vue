@@ -92,13 +92,14 @@
             </el-table-column>
             <el-table-column prop="condition" label="条件" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type !== 'host_down'">{{ getConditionName(row.condition) }}</span>
+                <span v-if="row.metric_type !== 'host_down' && row.metric_type !== 'service_port'">{{ getConditionName(row.condition) }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
             <el-table-column prop="threshold" label="阈值" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type !== 'host_down'">{{ row.threshold }}</span>
+                <span v-if="row.metric_type !== 'host_down' && row.metric_type !== 'service_port'">{{ row.threshold }}</span>
+                <span v-else-if="row.metric_type === 'service_port'">端口: {{ row.service_port || '-' }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
@@ -251,13 +252,13 @@
             </el-table-column>
             <el-table-column prop="metric_value" label="指标值" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type === 'host_down'">-</span>
+                <span v-if="row.metric_type === 'host_down' || row.metric_type === 'service_port'">-</span>
                 <span v-else>{{ row.metric_value != null ? row.metric_value.toFixed(2) : '-' }}</span>
               </template>
             </el-table-column>
             <el-table-column prop="threshold" label="阈值" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type === 'host_down'">-</span>
+                <span v-if="row.metric_type === 'host_down' || row.metric_type === 'service_port'">-</span>
                 <span v-else>{{ row.threshold != null ? row.threshold : '-' }}</span>
               </template>
             </el-table-column>
@@ -416,10 +417,17 @@
             <el-option label="磁盘使用率" value="disk" />
             <el-option label="网络" value="network" />
             <el-option label="主机宕机" value="host_down" />
+            <el-option label="服务端口" value="service_port" />
           </el-select>
         </el-form-item>
         <el-form-item label="主机ID" prop="host_id">
-          <el-select v-model="ruleForm.host_id" placeholder="选择主机（留空表示所有主机）" clearable filterable>
+          <el-select 
+            v-model="ruleForm.host_id" 
+            placeholder="选择主机（留空表示所有主机）" 
+            clearable 
+            filterable
+            @change="handleHostIdChange"
+          >
             <el-option label="全部主机" value="" />
             <el-option
               v-for="agent in agents"
@@ -429,7 +437,32 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="条件" prop="condition" v-if="ruleForm.metric_type !== 'host_down'">
+        <el-form-item label="挂载点" prop="mountpoint" v-if="ruleForm.metric_type === 'disk'">
+          <el-input 
+            v-model="ruleForm.mountpoint" 
+            placeholder="请输入挂载点，例如：/、/var、/home（留空表示使用第一个分区）" 
+            clearable
+          />
+          <span style="margin-left: 10px; color: #909399">留空表示使用第一个分区</span>
+        </el-form-item>
+        <el-form-item label="服务端口" prop="service_port" v-if="ruleForm.metric_type === 'service_port'">
+          <el-select 
+            v-model="ruleForm.service_port" 
+            placeholder="请选择服务端口" 
+            filterable
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="port in availableServicePorts"
+              :key="port"
+              :label="`端口 ${port}`"
+              :value="port"
+            />
+          </el-select>
+          <span style="margin-left: 10px; color: #909399">从服务监控页面配置的端口中选择</span>
+        </el-form-item>
+        <el-form-item label="条件" prop="condition" v-if="ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port'">
           <el-select v-model="ruleForm.condition" placeholder="请选择条件">
             <el-option label="大于 (>) " value="gt" />
             <el-option label="大于等于 (>=)" value="gte" />
@@ -439,7 +472,7 @@
             <el-option label="不等于 (!=)" value="neq" />
           </el-select>
         </el-form-item>
-        <el-form-item label="阈值" prop="threshold" v-if="ruleForm.metric_type !== 'host_down'">
+        <el-form-item label="阈值" prop="threshold" v-if="ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port'">
           <el-input-number 
             v-model="ruleForm.threshold" 
             :precision="2" 
@@ -458,6 +491,17 @@
           >
             <template #default>
               主机宕机告警：当Agent通信失败（超过2分钟未收到心跳）时立即触发告警。无需设置阈值。
+            </template>
+          </el-alert>
+        </el-form-item>
+        <el-form-item v-if="ruleForm.metric_type === 'service_port'" label="说明">
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              服务端口告警：当指定端口的服务不可访问时立即触发告警。端口数据来自服务监控页面中Agent配置的服务端口。
             </template>
           </el-alert>
         </el-form-item>
@@ -646,6 +690,7 @@ import { axios } from '@/utils/request'
 import type { Agent, ApiResponse } from '@/types'
 import { useAlertStore } from '@/stores/alert'
 import { useRoute, useRouter } from 'vue-router'
+import { getServices } from '@/api/service'
 
 const route = useRoute()
 const router = useRouter()
@@ -689,6 +734,8 @@ const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string }>({
   description: '',
   metric_type: 'cpu',
   host_id: '',
+  mountpoint: '',
+  service_port: undefined,
   condition: 'gte',
   threshold: 80,
   duration: 60,
@@ -700,13 +747,16 @@ const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string }>({
   receiversStr: ''
 })
 
+// 可用的服务端口列表（从服务监控数据中获取）
+const availableServicePorts = ref<number[]>([])
+
 const ruleFormRules: FormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
   metric_type: [{ required: true, message: '请选择指标类型', trigger: 'change' }],
   condition: [
     {
       validator: (rule: any, value: any, callback: any) => {
-        if (ruleForm.metric_type !== 'host_down' && !value) {
+        if (ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' && !value) {
           callback(new Error('请选择条件'))
         } else {
           callback()
@@ -718,13 +768,25 @@ const ruleFormRules: FormRules = {
   threshold: [
     {
       validator: (rule: any, value: any, callback: any) => {
-        if (ruleForm.metric_type !== 'host_down' && value === undefined) {
+        if (ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' && value === undefined) {
           callback(new Error('请输入阈值'))
         } else {
           callback()
         }
       },
       trigger: 'blur'
+    }
+  ],
+  service_port: [
+    {
+      validator: (rule: any, value: any, callback: any) => {
+        if (ruleForm.metric_type === 'service_port' && (!value || value <= 0)) {
+          callback(new Error('请选择服务端口'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
     }
   ],
   duration: [{ required: true, message: '请输入持续时间', trigger: 'blur' }],
@@ -1085,6 +1147,10 @@ const resetChannelForm = () => {
 const handleCreateRule = () => {
   isEditRule.value = false
   resetRuleForm()
+  // 如果选择的是服务端口类型，确保加载端口列表
+  if (ruleForm.metric_type === 'service_port') {
+    loadAvailableServicePorts(ruleForm.host_id)
+  }
   ruleDialogVisible.value = true
 }
 
@@ -1096,6 +1162,8 @@ const handleEditRule = (rule: AlertRule) => {
     description: rule.description,
     metric_type: rule.metric_type,
     host_id: rule.host_id,
+    mountpoint: rule.mountpoint || '',
+    service_port: rule.service_port,
     condition: rule.condition,
     threshold: rule.threshold,
     duration: rule.duration,
@@ -1107,6 +1175,11 @@ const handleEditRule = (rule: AlertRule) => {
     enabled: rule.enabled,
     receiversStr: Array.isArray(rule.receivers) ? rule.receivers.join(',') : ''
   })
+  
+  // 如果是服务端口类型，加载端口列表（根据编辑的主机ID）
+  if (rule.metric_type === 'service_port') {
+    loadAvailableServicePorts(rule.host_id)
+  }
   ruleDialogVisible.value = true
 }
 
@@ -1170,8 +1243,10 @@ const handleRuleSubmit = async () => {
           description: ruleForm.description,
           metric_type: ruleForm.metric_type,
           host_id: ruleForm.host_id || '',
-          condition: ruleForm.condition,
-          threshold: ruleForm.threshold,
+          mountpoint: ruleForm.metric_type === 'disk' ? (ruleForm.mountpoint || '') : '',
+          service_port: ruleForm.metric_type === 'service_port' ? (ruleForm.service_port || 0) : 0,
+          condition: ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' ? ruleForm.condition : '',
+          threshold: ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' ? ruleForm.threshold : 0,
           duration: ruleForm.duration,
           inhibit_duration: ruleForm.inhibit_duration !== undefined && ruleForm.inhibit_duration !== null ? ruleForm.inhibit_duration : 300, // 确保 0 值也能正确传递
           severity: ruleForm.severity,
@@ -1204,6 +1279,8 @@ const resetRuleForm = () => {
     description: '',
     metric_type: 'cpu',
     host_id: '',
+    mountpoint: '',
+    service_port: undefined,
     condition: 'gte',
     threshold: 80,
     duration: 60,
@@ -1422,7 +1499,8 @@ const getMetricTypeName = (type: string) => {
     memory: '内存使用率',
     disk: '磁盘使用率',
     network: '网络',
-    host_down: '主机宕机'
+    host_down: '主机宕机',
+    service_port: '服务端口'
   }
   return map[type] || type
 }
@@ -1535,9 +1613,87 @@ watch(() => route.fullPath, (newPath, oldPath) => {
   }
 })
 
+// 加载可用的服务端口列表
+const loadAvailableServicePorts = async (hostId?: string) => {
+  try {
+    // 如果传入了主机ID，使用它；否则使用表单中选择的主机ID
+    const targetHostId = hostId !== undefined ? hostId : (ruleForm.host_id || undefined)
+    
+    const res = await getServices(targetHostId)
+    console.log('[loadAvailableServicePorts] Response for hostId:', targetHostId, res)
+    
+    // 处理响应格式：getServices 返回 ApiResponse<ServiceInfo[]>
+    let services: any[] = []
+    if (res && typeof res === 'object') {
+      if ('code' in res && 'data' in res) {
+        // 标准 ApiResponse 格式
+        if (res.code === 200 && res.data) {
+          services = Array.isArray(res.data) ? res.data : []
+        } else {
+          console.warn('[loadAvailableServicePorts] Response code is not 200:', res.code, res.message)
+        }
+      } else if (Array.isArray(res)) {
+        // 直接是数组格式（不应该发生，但为了健壮性保留）
+        services = res
+      } else if ('data' in res && Array.isArray(res.data)) {
+        // 可能是嵌套的 data
+        services = res.data
+      }
+    }
+    
+    console.log('[loadAvailableServicePorts] Services count:', services.length)
+    console.log('[loadAvailableServicePorts] Services with ports:', services.filter(s => s && s.port && s.port > 0))
+    
+    // 从服务数据中提取所有唯一的端口号
+    const ports = new Set<number>()
+    services.forEach((service: any) => {
+      if (service && service.port && typeof service.port === 'number' && service.port > 0) {
+        ports.add(service.port)
+        console.log('[loadAvailableServicePorts] Found port:', service.port, 'from service:', service.name, 'host:', service.host_id)
+      }
+    })
+    
+    availableServicePorts.value = Array.from(ports).sort((a, b) => a - b)
+    console.log('[loadAvailableServicePorts] Available ports:', availableServicePorts.value)
+    
+    // 如果选择了主机ID但该主机没有端口，清空已选择的端口
+    if (targetHostId && availableServicePorts.value.length === 0) {
+      console.warn('[loadAvailableServicePorts] No ports found for host:', targetHostId)
+      if (ruleForm.service_port) {
+        ruleForm.service_port = undefined
+      }
+    }
+    
+    if (availableServicePorts.value.length === 0 && !targetHostId) {
+      console.warn('[loadAvailableServicePorts] No ports found in services. Services:', services)
+    }
+  } catch (error) {
+    console.error('Failed to load service ports:', error)
+    ElMessage.error('加载服务端口列表失败: ' + (error as Error).message)
+  }
+}
+
+// 处理主机ID变化
+const handleHostIdChange = (hostId: string) => {
+  // 如果是服务端口类型的告警规则，根据主机ID重新加载端口列表
+  if (ruleForm.metric_type === 'service_port') {
+    loadAvailableServicePorts(hostId)
+    // 如果切换了主机，清空已选择的端口（因为可能新主机没有这个端口）
+    ruleForm.service_port = undefined
+  }
+}
+
+// 监听指标类型变化，如果是服务端口类型，加载端口列表
+watch(() => ruleForm.metric_type, (newType) => {
+  if (newType === 'service_port') {
+    loadAvailableServicePorts(ruleForm.host_id)
+  }
+})
+
 onMounted(() => {
   loadChannels()
   loadAgents()
+  loadAvailableServicePorts()
   
   // 如果URL参数指定了tab，切换到对应tab
   if (route.query.tab === 'history') {
