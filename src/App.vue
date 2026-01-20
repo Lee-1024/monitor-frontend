@@ -1,9 +1,12 @@
 <template>
   <el-config-provider :locale="zhCn">
     <div class="app-container">
-      <NavMenu v-if="showNavMenu" />
-      <div class="app-content">
-        <router-view />
+      <TopNav v-if="showNavMenu" />
+      <div class="app-body">
+        <NavMenu v-if="showNavMenu" />
+        <div class="app-content">
+          <router-view />
+        </div>
       </div>
     </div>
   </el-config-provider>
@@ -13,6 +16,7 @@
 // @ts-ignore
 import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
 import NavMenu from './components/NavMenu.vue'
+import TopNav from './components/TopNav.vue'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
@@ -38,10 +42,20 @@ html, body, #app {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+}
+
+.app-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  overflow: hidden;
 }
 
 .app-content {
   flex: 1;
   overflow: auto;
+  background: #f5f7fa;
+  min-width: 0; /* 防止内容溢出 */
 }
 </style>

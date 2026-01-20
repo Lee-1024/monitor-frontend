@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <span>宕机分析</span>
-          <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="loadAnalysis">
+          <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="handleHostChange">
             <el-option label="全部主机" value="" />
             <el-option
               v-for="agent in agents"
@@ -82,8 +82,27 @@
 
       <!-- 宕机事件列表 -->
       <el-card shadow="never" style="margin-top: 20px">
-        <template #header>宕机事件记录</template>
-        <el-table :data="events" v-loading="loading">
+        <template #header>
+          <div style="display: flex; justify-content: space-between; align-items: center">
+            <span>宕机事件记录</span>
+            <div>
+              <el-button
+                type="danger"
+                :disabled="selectedEventIds.length === 0"
+                @click="handleBatchDelete"
+                :loading="deleting"
+              >
+                批量删除 ({{ selectedEventIds.length }})
+              </el-button>
+            </div>
+          </div>
+        </template>
+        <el-table
+          :data="events"
+          v-loading="loading"
+          @selection-change="handleSelectionChange"
+        >
+          <el-table-column type="selection" width="55" />
           <el-table-column prop="host_id" label="主机ID" width="150" />
           <el-table-column prop="hostname" label="主机名" width="150" />
           <el-table-column label="离线时间" width="180">
@@ -131,6 +150,27 @@
             </template>
           </el-table-column>
         </el-table>
+        
+        <!-- 数据统计和分页 -->
+        <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center">
+          <div class="statistics-info">
+            <span>共 <strong>{{ pagination.total }}</strong> 条记录，</span>
+            <span>当前显示第 <strong>{{ pagination.page }}</strong> 页，</span>
+            <span>每页 <strong>{{ pagination.pageSize }}</strong> 条</span>
+            <span v-if="selectedEventIds.length > 0" style="margin-left: 15px; color: #409eff">
+              （已选择 <strong>{{ selectedEventIds.length }}</strong> 条）
+            </span>
+          </div>
+          <el-pagination
+            v-model:current-page="pagination.page"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handlePageChange"
+          />
+        </div>
       </el-card>
     </el-card>
 
@@ -172,7 +212,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Warning, Clock, TrendCharts, CircleCheck } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
@@ -215,6 +255,15 @@ const analysis = ref<CrashAnalysisData>({
 const events = ref<CrashEvent[]>([])
 const detailVisible = ref(false)
 const selectedEvent = ref<CrashEvent | null>(null)
+const selectedEventIds = ref<number[]>([])
+const deleting = ref(false)
+
+// 分页相关
+const pagination = ref({
+  page: 1,
+  pageSize: 20,
+  total: 0
+})
 
 const reasonChartRef = ref<HTMLElement | null>(null)
 const trendChartRef = ref<HTMLElement | null>(null)
@@ -246,11 +295,27 @@ const loadAnalysis = async () => {
   try {
     loading.value = true
     
-    // 获取宕机事件
+    // 获取宕机事件（使用分页）
     const eventsRes = await axios.get('/v1/crash/events', {
-      params: { host_id: selectedHost.value, limit: 50 }
-    }) as unknown as ApiResponse<CrashEvent[]>
-    events.value = eventsRes.data || []
+      params: {
+        host_id: selectedHost.value,
+        page: pagination.value.page,
+        page_size: pagination.value.pageSize
+      }
+    }) as unknown as ApiResponse<{ events: CrashEvent[], total: number, page: number, page_size: number }>
+    
+    // 处理分页响应
+    if (eventsRes.data && typeof eventsRes.data === 'object' && 'events' in eventsRes.data) {
+      // 分页模式
+      events.value = eventsRes.data.events || []
+      pagination.value.total = eventsRes.data.total || 0
+      pagination.value.page = eventsRes.data.page || 1
+      pagination.value.pageSize = eventsRes.data.page_size || 20
+    } else {
+      // 兼容旧的非分页模式
+      events.value = (eventsRes.data as any) || []
+      pagination.value.total = events.value.length
+    }
     
     // 如果选择了特定主机，获取分析数据
     if (selectedHost.value) {
@@ -264,10 +329,10 @@ const loadAnalysis = async () => {
         console.log('Analysis data from backend:', analysis.value)
       }
     } else {
-      // 否则基于事件列表生成统计
+      // 否则基于事件列表生成统计（注意：这里只统计当前页的数据，如果需要全局统计需要额外API）
       const resolved = events.value.filter((e: any) => e.is_resolved).length
       analysis.value = {
-        total_crashes: events.value.length,
+        total_crashes: pagination.value.total, // 使用总数而不是当前页数量
         resolved_count: resolved,
         crash_frequency: calculateFrequency(events.value),
         main_reasons: analyzeReasons(events.value),
@@ -275,7 +340,7 @@ const loadAnalysis = async () => {
         recent_crashes: events.value
       }
       console.log('Analysis data calculated locally:', {
-        total: events.value.length,
+        total: pagination.value.total,
         resolved: resolved,
         events: events.value.map((e: any) => ({ id: e.id, is_resolved: e.is_resolved }))
       })
@@ -285,9 +350,30 @@ const loadAnalysis = async () => {
     updateCharts()
   } catch (error) {
     ElMessage.error('加载失败')
+    console.error('Failed to load crash analysis:', error)
   } finally {
     loading.value = false
   }
+}
+
+// 主机选择改变
+const handleHostChange = () => {
+  pagination.value.page = 1 // 重置到第一页
+  selectedEventIds.value = [] // 清空选择
+  loadAnalysis()
+}
+
+// 分页大小改变
+const handleSizeChange = (size: number) => {
+  pagination.value.pageSize = size
+  pagination.value.page = 1 // 重置到第一页
+  loadAnalysis()
+}
+
+// 页码改变
+const handlePageChange = (page: number) => {
+  pagination.value.page = page
+  loadAnalysis()
 }
 
 // 初始化图表
@@ -457,6 +543,58 @@ const calculateAvgDowntime = (events: any[]) => {
   return formatDuration(avg)
 }
 
+// 处理选择变化
+const handleSelectionChange = (selection: CrashEvent[]) => {
+  selectedEventIds.value = selection.map((item) => item.id!).filter((id): id is number => id !== undefined)
+}
+
+// 批量删除
+const handleBatchDelete = async () => {
+  if (selectedEventIds.value.length === 0) {
+    ElMessage.warning('请选择要删除的事件')
+    return
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedEventIds.value.length} 条宕机事件记录吗？此操作不可恢复。`,
+      '确认删除',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    deleting.value = true
+    const res = await axios.delete('/v1/crash/events', {
+      data: { ids: selectedEventIds.value }
+    }) as unknown as ApiResponse<{ deleted_count: number }>
+
+    ElMessage.success(`成功删除 ${res.data?.deleted_count || selectedEventIds.value.length} 条记录`)
+    
+    // 清空选择
+    selectedEventIds.value = []
+    
+    // 重新加载数据（如果当前页没有数据了，回到上一页）
+    const currentPage = pagination.value.page
+    await loadAnalysis()
+    
+    // 如果删除后当前页没有数据且不是第一页，回到上一页
+    if (events.value.length === 0 && currentPage > 1) {
+      pagination.value.page = currentPage - 1
+      await loadAnalysis()
+    }
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败: ' + (error.response?.data?.message || error.message || '未知错误'))
+      console.error('Failed to delete crash events:', error)
+    }
+  } finally {
+    deleting.value = false
+  }
+}
+
 onMounted(() => {
   loadAgents()
   loadAnalysis()
@@ -519,5 +657,15 @@ onMounted(() => {
   font-size: 14px;
   color: #909399;
   margin-top: 4px;
+}
+
+.statistics-info {
+  font-size: 14px;
+  color: #606266;
+}
+
+.statistics-info strong {
+  color: #303133;
+  font-weight: 600;
 }
 </style>

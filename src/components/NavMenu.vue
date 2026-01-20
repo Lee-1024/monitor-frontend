@@ -1,107 +1,77 @@
 <template>
   <div class="nav-container">
+    <!-- 左侧菜单 -->
     <el-menu
       :default-active="activeMenu"
-      mode="horizontal"
+      mode="vertical"
       router
       class="nav-menu"
+      :collapse="false"
     >
       <el-menu-item index="/dashboard">
         <el-icon><Monitor /></el-icon>
-        <span>监控面板</span>
+        <template #title>监控面板</template>
       </el-menu-item>
       <el-menu-item index="/bigscreen">
         <el-icon><Monitor /></el-icon>
-        <span>监控大屏</span>
+        <template #title>监控大屏</template>
       </el-menu-item>
       <el-menu-item index="/agents">
         <el-icon><Grid /></el-icon>
-        <span>主机管理</span>
+        <template #title>主机管理</template>
       </el-menu-item>
       <el-menu-item index="/crash-analysis">
         <el-icon><Warning /></el-icon>
-        <span>宕机分析</span>
+        <template #title>宕机分析</template>
       </el-menu-item>
       <el-menu-item index="/processes">
         <el-icon><Monitor /></el-icon>
-        <span>进程监控</span>
+        <template #title>进程监控</template>
       </el-menu-item>
       <el-menu-item index="/logs">
         <el-icon><Document /></el-icon>
-        <span>日志查看</span>
+        <template #title>日志查看</template>
       </el-menu-item>
       <el-menu-item index="/scripts">
         <el-icon><Tools /></el-icon>
-        <span>脚本执行</span>
+        <template #title>脚本执行</template>
       </el-menu-item>
       <el-menu-item index="/services">
         <el-icon><Connection /></el-icon>
-        <span>服务状态</span>
+        <template #title>服务状态</template>
       </el-menu-item>
       <el-menu-item v-if="userStore.isAdmin" index="/users">
         <el-icon><User /></el-icon>
-        <span>用户管理</span>
+        <template #title>用户管理</template>
       </el-menu-item>
       <el-menu-item v-if="userStore.isAdmin" index="/alerts">
         <el-icon><Bell /></el-icon>
-        <span>告警管理</span>
+        <template #title>告警管理</template>
+      </el-menu-item>
+      <el-menu-item v-if="userStore.isAdmin" index="/llm-config">
+        <el-icon><Setting /></el-icon>
+        <template #title>LLM配置</template>
+      </el-menu-item>
+      <el-menu-item index="/ai-analysis">
+        <el-icon><TrendCharts /></el-icon>
+        <template #title>AI分析</template>
+      </el-menu-item>
+      <el-menu-item index="/knowledge">
+        <el-icon><Document /></el-icon>
+        <template #title>知识库</template>
+      </el-menu-item>
+      <el-menu-item index="/inspection">
+        <el-icon><Search /></el-icon>
+        <template #title>智能巡检</template>
       </el-menu-item>
     </el-menu>
-    
-    <div class="nav-user">
-      <!-- 站内信提示 -->
-      <el-badge 
-        v-if="userStore.isAdmin && alertStore.hasUnread" 
-        :value="alertStore.unreadCount" 
-        :max="99"
-        class="notification-badge"
-      >
-        <el-button 
-          type="text" 
-          class="notification-btn"
-          @click="handleNotificationClick"
-        >
-          <el-icon :size="20"><Bell /></el-icon>
-        </el-button>
-      </el-badge>
-      <el-button 
-        v-else-if="userStore.isAdmin"
-        type="text" 
-        class="notification-btn"
-        @click="handleNotificationClick"
-      >
-        <el-icon :size="20"><Bell /></el-icon>
-      </el-button>
-      
-      <el-dropdown @command="handleCommand">
-        <span class="user-info">
-          <el-icon><User /></el-icon>
-          <span>{{ userStore.userInfo?.username || '未登录' }}</span>
-          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-        </span>
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item disabled>
-              <span style="color: #999;">{{ userStore.userInfo?.email }}</span>
-            </el-dropdown-item>
-            <el-dropdown-item disabled>
-              <span style="color: #999;">角色: {{ userStore.userInfo?.role === 'admin' ? '管理员' : '用户' }}</span>
-            </el-dropdown-item>
-            <el-dropdown-item divided command="logout">
-              <el-icon><SwitchButton /></el-icon>
-              退出登录
-            </el-dropdown-item>
-          </el-dropdown-menu>
-        </template>
-      </el-dropdown>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton, Document, Tools, Connection, Bell } from '@element-plus/icons-vue'
+import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton, Document, Tools, Connection, Bell, Setting, TrendCharts, Search } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useAlertStore } from '@/stores/alert'
 
@@ -161,57 +131,75 @@ onUnmounted(() => {
 
 <style scoped>
 .nav-container {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #e4e7ed;
+  width: 220px;
+  height: 100%;
   background: #fff;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 .nav-menu {
   flex: 1;
-  border-bottom: none;
+  border-right: none;
+  overflow-y: auto;
+  padding: 8px 0;
 }
 
-.nav-user {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 0 20px;
+.nav-menu::-webkit-scrollbar {
+  width: 6px;
 }
 
-.notification-badge {
-  cursor: pointer;
+.nav-menu::-webkit-scrollbar-track {
+  background: #f5f5f5;
 }
 
-.notification-btn {
-  padding: 8px;
-  color: #606266;
+.nav-menu::-webkit-scrollbar-thumb {
+  background: #ddd;
+  border-radius: 3px;
 }
 
-.notification-btn:hover {
+.nav-menu::-webkit-scrollbar-thumb:hover {
+  background: #bbb;
+}
+
+/* 菜单项样式优化 */
+:deep(.el-menu-item) {
+  height: 48px;
+  line-height: 48px;
+  margin: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.3s;
+  padding-left: 20px !important;
+}
+
+:deep(.el-menu-item:hover) {
+  background-color: #f5f7fa;
   color: #409eff;
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  color: #606266;
+:deep(.el-menu-item.is-active) {
+  background-color: #ecf5ff;
+  color: #409eff;
+  font-weight: 500;
+  border-left: 3px solid #409eff;
+  padding-left: 17px !important;
+}
+
+:deep(.el-menu-item .el-icon) {
+  margin-right: 12px;
+  font-size: 18px;
+  width: 18px;
+  text-align: center;
+}
+
+:deep(.el-menu-item.is-active .el-icon) {
+  color: #409eff;
+}
+
+:deep(.el-menu-item span) {
   font-size: 14px;
-}
-
-.user-info:hover {
-  color: #409eff;
-}
-
-.user-info .el-icon {
-  margin-right: 5px;
-}
-
-.user-info .el-icon--right {
-  margin-left: 5px;
-  margin-right: 0;
 }
 </style>
 

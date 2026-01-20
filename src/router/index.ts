@@ -77,6 +77,30 @@ const routes: RouteRecordRaw[] = [
     name: 'BigScreen',
     component: () => import('@/views/BigScreen.vue'),
     meta: { title: '监控大屏', requiresAuth: true }
+  },
+  {
+    path: '/llm-config',
+    name: 'LLMConfig',
+    component: () => import('@/views/LLMConfig.vue'),
+    meta: { title: 'LLM模型配置', requiresAuth: true, requiresAdmin: true }
+  },
+  {
+    path: '/ai-analysis',
+    name: 'AIAnalysis',
+    component: () => import('@/views/AIAnalysis.vue'),
+    meta: { title: 'AI分析', requiresAuth: true }
+  },
+  {
+    path: '/knowledge',
+    name: 'Knowledge',
+    component: () => import('@/views/Knowledge.vue'),
+    meta: { title: '知识库', requiresAuth: true }
+  },
+  {
+    path: '/inspection',
+    name: 'Inspection',
+    component: () => import('@/views/Inspection.vue'),
+    meta: { title: '智能巡检', requiresAuth: true }
   }
 ]
 
