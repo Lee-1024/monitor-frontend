@@ -81,6 +81,35 @@ export DEPLOY_HOST=your-server.com
 ./deploy.sh --upload-only
 ```
 
+### Docker 构建与运行
+
+项目提供 `Dockerfile`，采用多阶段构建：使用 Node 构建静态资源，使用 Nginx 托管。API 请求地址由构建参数 `VITE_API_BASE_URL` 决定，构建时写入前端资源。
+
+**构建镜像：**
+
+```bash
+cd monitor-frontend
+
+# 与 Backend 同域名部署（前端通过 /api 访问后端）
+docker build -t monitor-frontend:latest .
+
+# 跨域部署：指定 Backend 完整地址
+docker build --build-arg VITE_API_BASE_URL=https://api.example.com/api -t monitor-frontend:latest .
+```
+
+**运行容器：**
+
+```bash
+docker run -d --name monitor-frontend -p 80:80 monitor-frontend:latest
+```
+
+访问 `http://localhost` 即可。若 Backend 与前端同机部署，需在同一反向代理（如 Nginx）下配置 `/api` 反向代理到 Backend，或先构建时传入正确的 `VITE_API_BASE_URL`，再由前端直连该地址。
+
+**生产环境注意：**
+
+- 同域名部署时推荐使用 `VITE_API_BASE_URL=/api`，再由 Nginx 将 `/api` 代理到 Backend，无需改前端镜像。
+- 若 Backend 域名不同，必须在构建时通过 `--build-arg VITE_API_BASE_URL=...` 传入完整 API 地址，否则前端无法正确请求接口。
+
 ## 环境变量
 
 ### 开发环境
