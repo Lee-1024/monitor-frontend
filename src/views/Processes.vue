@@ -46,7 +46,7 @@
               />
             </el-select>
             <el-select v-model="sortBy" placeholder="排序方式" style="width: 150px; margin-left: 10px" @change="applySort">
-              <el-option label="默认" value="" />
+              <el-option label="综合排序" value="" />
               <el-option label="CPU占用降序" value="cpu_desc" />
               <el-option label="CPU占用升序" value="cpu_asc" />
               <el-option label="内存占用降序" value="memory_desc" />
@@ -71,7 +71,7 @@
         <el-table-column prop="pid" label="PID" width="80" />
         <el-table-column prop="name" label="进程名" width="200" />
         <el-table-column prop="user" label="用户" width="120" />
-        <el-table-column label="CPU%" width="100" sortable>
+        <el-table-column label="CPU%" width="100">
           <template #default="{ row }">
             <el-progress
               :percentage="Math.min(row.cpu_percent, 100)"
@@ -80,7 +80,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="内存%" width="100" sortable>
+        <el-table-column label="内存%" width="100">
           <template #default="{ row }">
             <el-progress
               :percentage="Math.min(row.memory_percent, 100)"
@@ -89,7 +89,7 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="内存使用" width="120" sortable>
+        <el-table-column label="内存使用" width="120">
           <template #default="{ row }">
             {{ formatBytes(row.memory_bytes) }}
           </template>
@@ -117,6 +117,24 @@
           </template>
         </el-table-column>
       </el-table>
+      
+      <!-- 分页组件 -->
+      <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center">
+        <div class="statistics-info">
+          <span>共 <strong>{{ pagination.total }}</strong> 条记录，</span>
+          <span>当前显示第 <strong>{{ pagination.page }}</strong> 页，</span>
+          <span>每页 <strong>{{ pagination.pageSize }}</strong> 条</span>
+        </div>
+        <el-pagination
+          v-model:current-page="pagination.page"
+          v-model:page-size="pagination.pageSize"
+          :page-sizes="[10, 20, 50]"
+          :total="pagination.total"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handlePageChange"
+        />
+      </div>
     </el-card>
   </div>
 </template>
@@ -157,9 +175,16 @@ interface ProcessInfo {
 
 const loading = ref(false)
 const selectedHost = ref('')
-const sortBy = ref('cpu_desc') // 默认按CPU占用降序排序
+const sortBy = ref('cpu_desc') // 默认按CPU占用降序排序（高使用在前）
 const agents = ref<Agent[]>([])
 const processes = ref<ProcessInfo[]>([])
+
+// 分页相关
+const pagination = ref({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
 
 // 图表相关
 const historyLoading = ref(false)
@@ -180,7 +205,12 @@ const WARNING_INTERVAL = 3000 // 3秒内不重复提示
 // 排序后的进程列表
 const sortedProcesses = computed(() => {
   if (!sortBy.value) {
-    return processes.value
+    // 默认按CPU和内存综合降序排序（高使用在前）
+    return [...processes.value].sort((a, b) => {
+      const scoreA = a.cpu_percent + a.memory_percent
+      const scoreB = b.cpu_percent + b.memory_percent
+      return scoreB - scoreA
+    })
   }
   
   const sorted = [...processes.value]
@@ -221,27 +251,39 @@ const loadProcesses = async () => {
   
   try {
     loading.value = true
-    const params: any = { limit: 100 }
+    const params: any = {
+      page: pagination.value.page,
+      page_size: pagination.value.pageSize
+    }
     if (selectedHost.value) {
       params.host_id = selectedHost.value
     }
     
     console.log('Loading processes with params:', params)
-    const res = await axios.get('/v1/processes', { params }) as unknown as ApiResponse<ProcessInfo[]>
+    const res = await axios.get('/v1/processes', { params }) as unknown as ApiResponse<any>
     console.log('Processes API response:', res)
     
     if (res && res.data) {
-      processes.value = res.data
-      console.log(`Loaded ${res.data.length} active processes`)
+      // 支持分页响应格式
+      if (res.data.processes) {
+        processes.value = res.data.processes
+        pagination.value.total = res.data.total || 0
+        console.log(`Loaded ${res.data.processes.length} processes, total: ${pagination.value.total}`)
+      } else if (Array.isArray(res.data)) {
+        // 向后兼容：旧的非分页格式
+        processes.value = res.data
+        pagination.value.total = res.data.length
+        console.log(`Loaded ${res.data.length} active processes`)
+      }
+      
       // 只有在数据为空且距离上次提示超过3秒时才提示
-      if (res.data.length === 0) {
+      if (processes.value.length === 0) {
         const now = Date.now()
         if (now - lastEmptyWarningTime > WARNING_INTERVAL) {
           ElMessage.warning('暂无活跃进程数据，请确认Agent是否正在运行并上报数据')
           lastEmptyWarningTime = now
         }
       }
-      // 进程列表和历史数据独立，历史数据由用户手动刷新图表
     } else {
       processes.value = []
       console.warn('No process data in response')
@@ -257,6 +299,19 @@ const loadProcesses = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 分页大小改变
+const handleSizeChange = (size: number) => {
+  pagination.value.pageSize = size
+  pagination.value.page = 1
+  loadProcesses()
+}
+
+// 页码改变
+const handlePageChange = (page: number) => {
+  pagination.value.page = page
+  loadProcesses()
 }
 
 // 使用防抖包装loadProcesses，避免频繁触发
@@ -286,11 +341,6 @@ const getStatusType = (status: string) => {
   const statusStr = String(status).trim()
   const statusLower = statusStr.toLowerCase()
   const statusUpper = statusStr.toUpperCase()
-  
-  // 调试日志（仅在开发环境）
-  if (process.env.NODE_ENV === 'development' && statusLower === 'sleep') {
-    console.log('Sleep status detected:', { status, statusStr, statusLower, statusUpper })
-  }
   
   // Running状态 - 绿色
   if (statusUpper === 'R' || statusLower === 'running' || statusUpper.includes('RUNNING')) {
@@ -413,6 +463,11 @@ onMounted(() => {
 .header-actions {
   display: flex;
   align-items: center;
+}
+
+.statistics-info {
+  font-size: 14px;
+  color: #606266;
 }
 </style>
 

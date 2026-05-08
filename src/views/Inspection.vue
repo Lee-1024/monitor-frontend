@@ -297,14 +297,17 @@ const loadReports = async () => {
     total.value = data.total || 0
     console.log('[Frontend] 报告列表:', reports.value)
     if (reports.value.length > 0) {
-      console.log('[Frontend] 第一个报告数据:', reports.value[0])
-      console.log('[Frontend] 第一个报告的统计:', {
-        total_hosts: reports.value[0].total_hosts,
-        online_hosts: reports.value[0].online_hosts,
-        offline_hosts: reports.value[0].offline_hosts,
-        warning_hosts: reports.value[0].warning_hosts,
-        critical_hosts: reports.value[0].critical_hosts
-      })
+      const firstReport = reports.value[0]
+      console.log('[Frontend] 第一个报告数据:', firstReport)
+      if (firstReport) {
+        console.log('[Frontend] 第一个报告的统计:', {
+          total_hosts: firstReport.total_hosts,
+          online_hosts: firstReport.online_hosts,
+          offline_hosts: firstReport.offline_hosts,
+          warning_hosts: firstReport.warning_hosts,
+          critical_hosts: firstReport.critical_hosts
+        })
+      }
     }
   } catch (error: any) {
     ElMessage.error('加载报告列表失败：' + (error.message || '未知错误'))
@@ -394,8 +397,15 @@ const handleGenerateReport = async (report: InspectionReport) => {
       }
 
       if (chunk.content) {
-        reportContent.value += chunk.content
-        console.log(`[Frontend] 收到chunk内容，长度=${chunk.content.length}，当前总长度=${reportContent.value.length}`)
+        // 检查是否包含重复内容（以"# 系统巡检日报"出现两次）
+        const titleCount = (reportContent.value + chunk.content).match(/# 系统巡检日报/g)?.length || 0
+        if (titleCount > 1) {
+          // 检测到可能的重复内容，跳过这个chunk
+          console.log(`[Frontend] 检测到可能的重复内容，跳过，长度=${chunk.content.length}，当前总长度=${reportContent.value.length}`)
+        } else {
+          reportContent.value += chunk.content
+          console.log(`[Frontend] 收到chunk内容，长度=${chunk.content.length}，当前总长度=${reportContent.value.length}`)
+        }
         // 切换到日报标签页
         if (detailTab.value !== 'report') {
           detailTab.value = 'report'

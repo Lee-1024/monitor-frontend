@@ -1011,14 +1011,27 @@ onUnmounted(() => {
 .chart-card .chart-container {
   flex: 1;
   min-height: 350px;
+  position: relative;
+  z-index: 2;
 }
 
 .disk-chart-card {
   transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
 }
 
 .disk-chart-card:hover {
   transform: translateY(-2px);
+}
+
+.chart-card {
+  position: relative;
+  z-index: 2;
+}
+
+.chart-card:hover {
+  z-index: 100;
 }
 
 .chart-title-text {

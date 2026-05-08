@@ -546,15 +546,6 @@
                 </el-select>
               </el-form-item>
 
-              <el-form-item label="资源类型">
-                <el-select v-model="filterForm.resourceType" style="width: 150px">
-                  <el-option label="全部" value="" />
-                  <el-option label="CPU" value="cpu" />
-                  <el-option label="内存" value="memory" />
-                  <el-option label="磁盘" value="disk" />
-                </el-select>
-              </el-form-item>
-
               <el-form-item>
                 <el-button type="warning" @click="detectAnomaliesHandler" :loading="anomalyDetecting" :disabled="!filterForm.hostId">
                   <el-icon><Warning /></el-icon>
@@ -1036,18 +1027,19 @@ const handleTabChange = (tabName: string) => {
 // 加载主机列表
 const loadAgents = async () => {
   try {
-    const res = await getAgents({ page_size: 1000 }) // 获取所有主机
-    // 处理分页响应格式：res.data 是 PaginatedResponse<Agent>
+    const res = await getAgents({ page_size: 1000 }) as any
+    // 处理分页响应格式
     if (res.data) {
-      if (Array.isArray(res.data)) {
+      const data = res.data as any
+      if (Array.isArray(data)) {
         // 直接是数组
-        agents.value = res.data
-      } else if (res.data.agents && Array.isArray(res.data.agents)) {
+        agents.value = data
+      } else if (data.agents && Array.isArray(data.agents)) {
         // 分页响应格式：{ agents: [...], total: ... }
-        agents.value = res.data.agents
-      } else if (res.data.data && Array.isArray(res.data.data)) {
+        agents.value = data.agents
+      } else if (data.data && Array.isArray(data.data)) {
         // 嵌套格式
-        agents.value = res.data.data
+        agents.value = data.data
       } else {
         agents.value = []
       }
@@ -1125,7 +1117,13 @@ const analyzePerformanceHandler = async () => {
         
         // 累积内容
         if (chunk.content) {
-          performanceSummary.value += chunk.content
+          // 检查是否包含重复内容（以"主机性能分析报告"出现两次）
+          const titleCount = (performanceSummary.value + chunk.content).match(/主机性能分析报告/g)?.length || 0
+          if (titleCount > 1) {
+            console.log('[Frontend] 检测到可能的重复内容，跳过')
+          } else {
+            performanceSummary.value += chunk.content
+          }
         }
         
         // 如果完成
@@ -1232,7 +1230,7 @@ const pollLLMTask = async (taskId: string, type: 'capacity' | 'cost') => {
           }
           // 失败时清除推荐内容，只显示失败提示
           if (costOptimization.value) {
-            costOptimization.value.recommendation = undefined
+            costOptimization.value.recommendation = ''
           }
         }
         ElMessage.warning('AI分析请求失败，已显示提示信息')
@@ -1441,7 +1439,14 @@ const loadPredictionWithAI = async () => {
         }
         
         // 累积内容
-        streamContent.value += chunk.content
+        // 检查是否包含重复内容
+        const contentMatch = streamContent.value.match(/主机性能分析报告/g)
+        const afterAddMatch = (streamContent.value + chunk.content).match(/主机性能分析报告/g)
+        if (afterAddMatch && afterAddMatch.length > 1 && (!contentMatch || contentMatch.length <= 1)) {
+          console.log('[Frontend] 检测到可能的重复内容，跳过')
+        } else {
+          streamContent.value += chunk.content
+        }
         
         // 实时解析并更新显示
         parseAndUpdateStreamContent(streamContent.value)
@@ -1728,7 +1733,7 @@ const updateChart = async () => {
       interval: '1h'
     })
 
-    const historyData = historyRes.data || []
+    const historyData = (historyRes as any).data || []
     const prediction = predictionData.value.prediction
 
     // 准备历史数据

@@ -49,7 +49,7 @@
         <template #title>告警管理</template>
       </el-menu-item>
       <el-menu-item v-if="userStore.isAdmin" index="/llm-config">
-        <el-icon><Setting /></el-icon>
+        <el-icon><MagicStick /></el-icon>
         <template #title>LLM配置</template>
       </el-menu-item>
       <el-menu-item index="/ai-analysis">
@@ -71,7 +71,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton, Document, Tools, Connection, Bell, Setting, TrendCharts, Search } from '@element-plus/icons-vue'
+import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton, Document, Tools, Connection, Bell, Setting, TrendCharts, Search, MagicStick } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
 import { useAlertStore } from '@/stores/alert'
 

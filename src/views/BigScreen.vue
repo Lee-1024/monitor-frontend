@@ -113,27 +113,57 @@
         </div>
 
         <!-- 系统指标 -->
-        <div class="panel-box" style="flex: 1 1 auto; min-height: 0;">
+        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
           <div class="panel-header">
             <span class="panel-icon">📊</span>
             <span class="panel-title">系统指标</span>
           </div>
-          <div class="panel-content">
-            <div class="metric-item">
-              <div class="metric-label">平均CPU</div>
-              <div class="metric-progress">
-                <div class="progress-bar" :style="{ width: (overview.avg_cpu || 0) + '%' }"></div>
-                <span class="progress-text">{{ (overview.avg_cpu || 0).toFixed(1) }}%</span>
+          <div class="metric-switch-container" v-if="overview.avg_cpu > 0 || overview.avg_memory > 0">
+            <!-- 平均CPU -->
+            <div class="metric-switch-item" v-show="currentMetric === 'cpu'">
+              <div class="metric-item-content">
+                <div class="metric-label-row">
+                  <span class="metric-icon">🖥️</span>
+                  <span class="metric-label">平均CPU</span>
+                </div>
+                <div class="metric-value-display">
+                  <span class="value-main cpu-color">{{ (overview.avg_cpu || 0).toFixed(1) }}</span>
+                  <span class="value-suffix cpu-color">%</span>
+                </div>
+                <div class="metric-bar">
+                  <div class="bar-bg">
+                    <div class="bar-fill cpu-bar-fill" :style="{ width: Math.min(overview.avg_cpu || 0, 100) + '%' }"></div>
+                  </div>
+                </div>
               </div>
             </div>
-            <div class="metric-item">
-              <div class="metric-label">平均内存</div>
-              <div class="metric-progress">
-                <div class="progress-bar memory" :style="{ width: (overview.avg_memory || 0) + '%' }"></div>
-                <span class="progress-text">{{ (overview.avg_memory || 0).toFixed(1) }}%</span>
+            
+            <!-- 平均内存 -->
+            <div class="metric-switch-item" v-show="currentMetric === 'memory'">
+              <div class="metric-item-content">
+                <div class="metric-label-row">
+                  <span class="metric-icon">💾</span>
+                  <span class="metric-label">平均内存</span>
+                </div>
+                <div class="metric-value-display">
+                  <span class="value-main memory-color">{{ (overview.avg_memory || 0).toFixed(1) }}</span>
+                  <span class="value-suffix memory-color">%</span>
+                </div>
+                <div class="metric-bar">
+                  <div class="bar-bg">
+                    <div class="bar-fill memory-bar-fill" :style="{ width: Math.min(overview.avg_memory || 0, 100) + '%' }"></div>
+                  </div>
+                </div>
               </div>
+            </div>
+            
+            <!-- 切换指示器 -->
+            <div class="switch-indicators">
+              <span class="indicator" :class="{ active: currentMetric === 'cpu' }" @click="currentMetric = 'cpu'"></span>
+              <span class="indicator" :class="{ active: currentMetric === 'memory' }" @click="currentMetric = 'memory'"></span>
             </div>
           </div>
+          <div v-else class="empty-data">暂无数据</div>
         </div>
       </div>
 
@@ -161,48 +191,175 @@
       <!-- 右侧区域 -->
       <div class="right-panel">
         <!-- 实时告警列表 -->
-        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;">
+        <div class="panel-box" style="flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column;">
           <div class="panel-header">
             <span class="panel-icon">⚠️</span>
             <span class="panel-title">实时告警</span>
           </div>
-          <div class="panel-content alert-list">
-            <div v-if="recentAlerts.length === 0" class="empty-alert">暂无告警</div>
-            <div
-              v-for="alert in recentAlerts"
-              :key="alert.id"
-              class="alert-item-row"
-              :class="alert.severity"
-            >
-              <div class="alert-severity-icon">
-                {{ alert.severity === 'critical' ? '🔴' : alert.severity === 'warning' ? '🟡' : '🔵' }}
+          <div class="auto-scroll-container alert-scroll">
+            <div class="scroll-wrapper" v-if="recentAlerts.length > 0">
+              <div class="scrolling-content panel-content alert-list">
+                <div
+                  v-for="alert in recentAlerts"
+                  :key="alert.id"
+                  class="alert-item-row"
+                  :class="alert.severity"
+                >
+                  <div class="alert-severity-icon">
+                    {{ alert.severity === 'critical' ? '🔴' : alert.severity === 'warning' ? '🟡' : '🔵' }}
+                  </div>
+                  <div class="alert-content">
+                    <div class="alert-rule">{{ alert.rule_name }}</div>
+                    <div class="alert-host">{{ alert.hostname }}</div>
+                    <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
+                  </div>
+                </div>
               </div>
-              <div class="alert-content">
-                <div class="alert-rule">{{ alert.rule_name }}</div>
-                <div class="alert-host">{{ alert.hostname }}</div>
-                <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
+              <div class="scrolling-content panel-content alert-list" aria-hidden="true">
+                <div
+                  v-for="alert in recentAlerts"
+                  :key="'dup-' + alert.id"
+                  class="alert-item-row"
+                  :class="alert.severity"
+                >
+                  <div class="alert-severity-icon">
+                    {{ alert.severity === 'critical' ? '🔴' : alert.severity === 'warning' ? '🟡' : '🔵' }}
+                  </div>
+                  <div class="alert-content">
+                    <div class="alert-rule">{{ alert.rule_name }}</div>
+                    <div class="alert-host">{{ alert.hostname }}</div>
+                    <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
+                  </div>
+                </div>
               </div>
             </div>
+            <div v-else class="empty-alert">暂无告警</div>
           </div>
         </div>
 
-        <!-- Top进程 -->
-        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column;">
+        <!-- 主机资源Top -->
+        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
           <div class="panel-header">
-            <span class="panel-icon">⚙️</span>
-            <span class="panel-title">Top进程</span>
+            <span class="panel-icon">📊</span>
+            <span class="panel-title">主机资源消耗 Top 5</span>
           </div>
-          <div class="panel-content process-list">
-            <div v-if="topProcesses.length === 0" class="empty-process">暂无数据</div>
-            <div
-              v-for="(process, index) in topProcesses"
-              :key="index"
-              class="process-item"
-            >
-              <div class="process-rank">{{ index + 1 }}</div>
-              <div class="process-name">{{ process.name || '未知' }}</div>
-              <div class="process-cpu">{{ (process.cpu || 0).toFixed(1) }}%</div>
+          <div class="auto-scroll-container resource-scroll">
+            <div class="scroll-wrapper" v-if="hostResources.length > 0">
+              <div class="scrolling-content panel-content host-resource-list">
+                <div
+                  v-for="(host, index) in hostResources"
+                  :key="host.host_id"
+                  class="host-resource-item"
+                >
+                  <div class="resource-rank">{{ index + 1 }}</div>
+                  <div class="resource-info">
+                    <div class="host-name">
+                      <span class="host-icon">🖥️</span>
+                      <span class="host-text">{{ host.hostname || host.host_id }}</span>
+                    </div>
+                    <div class="resource-bars">
+                      <div class="resource-bar-item">
+                        <span class="bar-label">CPU</span>
+                        <div class="resource-bar-wrapper">
+                          <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
+                        </div>
+                        <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
+                      </div>
+                      <div class="resource-bar-item">
+                        <span class="bar-label">内存</span>
+                        <div class="resource-bar-wrapper">
+                          <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
+                        </div>
+                        <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="scrolling-content panel-content host-resource-list" aria-hidden="true">
+                <div
+                  v-for="(host, index) in hostResources"
+                  :key="'dup-' + host.host_id"
+                  class="host-resource-item"
+                >
+                  <div class="resource-rank">{{ index + 1 }}</div>
+                  <div class="resource-info">
+                    <div class="host-name">
+                      <span class="host-icon">🖥️</span>
+                      <span class="host-text">{{ host.hostname || host.host_id }}</span>
+                    </div>
+                    <div class="resource-bars">
+                      <div class="resource-bar-item">
+                        <span class="bar-label">CPU</span>
+                        <div class="resource-bar-wrapper">
+                          <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
+                        </div>
+                        <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
+                      </div>
+                      <div class="resource-bar-item">
+                        <span class="bar-label">内存</span>
+                        <div class="resource-bar-wrapper">
+                          <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
+                        </div>
+                        <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+            <div v-else class="empty-data">暂无数据</div>
+          </div>
+        </div>
+        
+        <!-- 磁盘空间告警Top -->
+        <div class="panel-box" style="flex: 0 0 200px; min-height: 0; overflow: hidden;">
+          <div class="panel-header">
+            <span class="panel-icon">💾</span>
+            <span class="panel-title">磁盘告警</span>
+          </div>
+          <div class="auto-scroll-container disk-scroll">
+            <div class="scroll-wrapper" v-if="diskAlerts.length > 0">
+              <div class="scrolling-content panel-content disk-alert-list">
+                <div
+                  v-for="(alert, index) in diskAlerts"
+                  :key="alert.host_id + index"
+                  class="disk-alert-item"
+                >
+                  <div class="alert-rank">{{ index + 1 }}</div>
+                  <div class="alert-info">
+                    <div class="alert-host">
+                      <span class="host-icon">🖥️</span>
+                      <span>{{ alert.hostname || alert.host_id }}</span>
+                    </div>
+                    <div class="alert-mountpoint">{{ alert.mountpoint }}</div>
+                  </div>
+                  <div class="alert-usage" :class="getDiskAlertClass(alert.disk_usage)">
+                    {{ alert.disk_usage.toFixed(1) }}%
+                  </div>
+                </div>
+              </div>
+              <div class="scrolling-content panel-content disk-alert-list" aria-hidden="true">
+                <div
+                  v-for="(alert, index) in diskAlerts"
+                  :key="'dup-' + alert.host_id + index"
+                  class="disk-alert-item"
+                >
+                  <div class="alert-rank">{{ index + 1 }}</div>
+                  <div class="alert-info">
+                    <div class="alert-host">
+                      <span class="host-icon">🖥️</span>
+                      <span>{{ alert.hostname || alert.host_id }}</span>
+                    </div>
+                    <div class="alert-mountpoint">{{ alert.mountpoint }}</div>
+                  </div>
+                  <div class="alert-usage" :class="getDiskAlertClass(alert.disk_usage)">
+                    {{ alert.disk_usage.toFixed(1) }}%
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else class="empty-data">暂无告警</div>
           </div>
         </div>
       </div>
@@ -223,9 +380,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { getOverview, getTopMetrics } from '@/api/metrics'
-import { getAlertHistory } from '@/api/alert'
+import { getOverview, getTopMetrics, getLatestMetrics } from '@/api/metrics'
+import { getAlertHistory as fetchAlertHistoryAPI } from '@/api/alert'
 import { axios } from '@/utils/request'
+
+// 封装getAlertHistory函数，避免命名冲突
+const getAlertHistory = (params: any) => fetchAlertHistoryAPI(params)
 import type { ApiResponse, Overview } from '@/types'
 import type { AlertHistory } from '@/api/alert'
 import dayjs from 'dayjs'
@@ -247,7 +407,8 @@ const alertStats = ref({
 })
 
 const recentAlerts = ref<AlertHistory[]>([])
-const topProcesses = ref<any[]>([])
+const hostResources = ref<any[]>([])
+const diskAlerts = ref<any[]>([])
 const streamData = ref<Array<{ label: string; value: string }>>([])
 
 const cpuChartRef = ref<HTMLElement>()
@@ -256,7 +417,9 @@ const bigScreenContainer = ref<HTMLElement>()
 let cpuChart: echarts.ECharts | null = null
 let memoryChart: echarts.ECharts | null = null
 let refreshTimer: any = null
+let metricSwitchTimer: any = null
 const isFullscreen = ref(false)
+const currentMetric = ref<'cpu' | 'memory'>('cpu')
 
 // 格式化时间
 const formatTime = (time: string) => {
@@ -312,26 +475,94 @@ const fetchTopMetrics = async () => {
   }
 }
 
-// 获取Top进程
-const fetchTopProcesses = async () => {
+// 获取主机资源数据
+const fetchHostResources = async () => {
   try {
-    const res = await axios.get('/v1/processes', { params: { limit: 100 } }) as unknown as ApiResponse<any[]>
-    if (res?.code === 200 && res?.data) {
-      // 按CPU使用率排序
-      const processes = res.data
-        .filter((p: any) => p.cpu_percent !== undefined)
-        .sort((a: any, b: any) => (b.cpu_percent || 0) - (a.cpu_percent || 0))
-        .slice(0, 10)
-        .map((p: any) => ({
-          name: p.name || p.command || '未知',
-          cpu: p.cpu_percent || 0
-        }))
-      topProcesses.value = processes
+    // 1. 获取主机列表（包含所有状态的主机）
+    const res = await axios.get('/v1/agents', { params: { page_size: 100 } }) as unknown as ApiResponse<any>
+    
+    if (res?.code === 200 && res?.data?.agents) {
+      const agents = res.data.agents
+      
+      // 获取每个主机的最新指标（不过滤状态，只要能获取到指标就算）
+      const resourcePromises = agents.map(async (agent: any) => {
+        try {
+          const metricsRes = await getLatestMetrics(agent.host_id) as unknown as ApiResponse<any>
+          
+          if (metricsRes?.data) {
+            const data = metricsRes.data
+            // 尝试多种可能的字段名格式
+            const cpuUsage = data.cpu?.usage_percent || data.cpu?.UsagePercent || data.cpu?.usagePercent || 0
+            const memoryUsage = data.memory?.used_percent || data.memory?.UsedPercent || data.memory?.usedPercent || 0
+            const partitions = data.disk?.partitions || data.disk?.Partitions || data.disk || []
+            
+            return {
+              host_id: agent.host_id,
+              hostname: agent.hostname,
+              status: agent.status,
+              cpu_usage: typeof cpuUsage === 'number' ? cpuUsage : 0,
+              memory_usage: typeof memoryUsage === 'number' ? memoryUsage : 0,
+              disk_partitions: Array.isArray(partitions) ? partitions : []
+            }
+          }
+        } catch (error) {
+          console.error(`Failed to fetch metrics for ${agent.host_id}:`, error)
+        }
+        return null
+      })
+      
+      const resources = await Promise.all(resourcePromises)
+      const validResources = resources.filter(r => r !== null)
+      
+      // 按综合负载排序，取Top 5
+      hostResources.value = validResources
+        .sort((a, b) => (b.cpu_usage + b.memory_usage) - (a.cpu_usage + a.memory_usage))
+        .slice(0, 5)
+    } else {
+      hostResources.value = []
     }
   } catch (error) {
-    console.error('Failed to fetch top processes:', error)
-    topProcesses.value = []
+    console.error('Failed to fetch host resources:', error)
+    hostResources.value = []
   }
+}
+
+// 获取磁盘告警（从后端告警历史获取）
+const fetchDiskAlerts = async () => {
+  try {
+    // 从告警历史中获取disk类型的firing告警
+    const res = await getAlertHistory({ status: 'firing', limit: 100 }) as unknown as ApiResponse<any[]>
+    
+    if (res?.code === 200 && res?.data) {
+      // 过滤出disk类型的告警
+      const diskAlertsData = res.data.filter((alert: any) => {
+        return alert.metric_type === 'disk' && alert.status === 'firing'
+      })
+      
+      // 转换为展示格式
+      diskAlerts.value = diskAlertsData.slice(0, 5).map((alert: any) => ({
+        host_id: alert.host_id,
+        hostname: alert.hostname,
+        mountpoint: alert.labels?.mountpoint || '/',
+        disk_usage: alert.metric_value,
+        severity: alert.severity,
+        message: alert.message
+      }))
+    } else {
+      diskAlerts.value = []
+    }
+  } catch (error) {
+    console.error('Failed to fetch disk alerts:', error)
+    diskAlerts.value = []
+  }
+}
+
+// 获取磁盘告警等级样式
+const getDiskAlertClass = (usage: number) => {
+  if (usage >= 90) return 'disk-critical'
+  if (usage >= 85) return 'disk-warning'
+  if (usage >= 70) return 'disk-info'
+  return ''
 }
 
 // 更新CPU图表
@@ -361,7 +592,7 @@ const updateCPUChart = (data: any[]) => {
     },
     series: [{
       type: 'bar',
-      data: data.map((item: any) => item.value || 0).reverse(),
+      data: data.map((item: any) => parseFloat((item.value || 0).toFixed(1))).reverse(),
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
           { offset: 0, color: '#00d4ff' },
@@ -372,7 +603,9 @@ const updateCPUChart = (data: any[]) => {
         show: true,
         position: 'right',
         color: '#00d4ff',
-        formatter: '{c}%'
+        formatter: (params: any) => {
+          return parseFloat((params.value || 0).toFixed(1)) + '%'
+        }
       }
     }]
   }
@@ -407,7 +640,7 @@ const updateMemoryChart = (data: any[]) => {
     },
     series: [{
       type: 'bar',
-      data: data.map((item: any) => item.value || 0).reverse(),
+      data: data.map((item: any) => parseFloat((item.value || 0).toFixed(1))).reverse(),
       itemStyle: {
         color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
           { offset: 0, color: '#00ff88' },
@@ -418,7 +651,9 @@ const updateMemoryChart = (data: any[]) => {
         show: true,
         position: 'right',
         color: '#00ff88',
-        formatter: '{c}%'
+        formatter: (params: any) => {
+          return parseFloat((params.value || 0).toFixed(1)) + '%'
+        }
       }
     }]
   }
@@ -449,7 +684,8 @@ const refreshData = async () => {
     fetchOverview(),
     fetchAlerts(),
     fetchTopMetrics(),
-    fetchTopProcesses()
+    fetchHostResources(),
+    fetchDiskAlerts()
   ])
   updateStreamData()
 }
@@ -574,11 +810,19 @@ onMounted(async () => {
   
   // 每秒更新时间
   setInterval(updateTime, 1000)
+  
+  // 系统指标自动切换（每3秒切换一次）
+  metricSwitchTimer = setInterval(() => {
+    currentMetric.value = currentMetric.value === 'cpu' ? 'memory' : 'cpu'
+  }, 3000)
 })
 
 onUnmounted(() => {
   if (refreshTimer) {
     clearInterval(refreshTimer)
+  }
+  if (metricSwitchTimer) {
+    clearInterval(metricSwitchTimer)
   }
   if (cpuChart) {
     cpuChart.dispose()
@@ -586,8 +830,6 @@ onUnmounted(() => {
   if (memoryChart) {
     memoryChart.dispose()
   }
-  
-  // 移除全屏监听
   document.removeEventListener('fullscreenchange', handleFullscreenChange)
   document.removeEventListener('webkitfullscreenchange', handleFullscreenChange)
   document.removeEventListener('mozfullscreenchange', handleFullscreenChange)
@@ -878,9 +1120,10 @@ onUnmounted(() => {
 .right-panel {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
   height: 100%;
   overflow-y: auto;
+  padding-right: 5px;
 }
 
 .right-panel::-webkit-scrollbar {
@@ -888,6 +1131,314 @@ onUnmounted(() => {
 }
 
 .right-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.3);
+  border-radius: 2px;
+}
+
+.right-panel::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+/* 自动滚动容器 */
+.auto-scroll-container {
+  flex: 1;
+  overflow-y: hidden;
+  position: relative;
+}
+
+.auto-scroll-container:hover .scrolling-content {
+  animation-play-state: paused;
+}
+
+.auto-scroll-container:hover {
+  overflow-y: auto;
+}
+
+/* 滚动内容包装器 */
+.scroll-wrapper {
+  display: flex;
+  flex-direction: column;
+  animation: scroll-down 20s linear infinite;
+}
+
+.scroll-wrapper:hover {
+  animation-play-state: paused;
+}
+
+/* 告警滚动容器 */
+.alert-scroll {
+  max-height: 180px;
+}
+
+.alert-scroll .panel-content.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.alert-scroll .scrolling-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 主机资源滚动容器 */
+.resource-scroll {
+  max-height: 300px;
+}
+
+.resource-scroll .panel-content.host-resource-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.resource-scroll .scrolling-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* 磁盘告警滚动容器 */
+.disk-scroll {
+  max-height: 180px;
+}
+
+.disk-scroll .panel-content.disk-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.disk-scroll .scrolling-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 向下滚动动画 */
+@keyframes scroll-down {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+/* 告警滚动动画 */
+.alert-scroll .scroll-wrapper {
+  animation: scroll-down 15s linear infinite;
+}
+
+.alert-scroll:hover .scroll-wrapper {
+  animation-play-state: paused;
+}
+
+/* 主机资源滚动动画 - 更慢因为内容更大 */
+.resource-scroll .scroll-wrapper {
+  animation: scroll-down 25s linear infinite;
+}
+
+.resource-scroll:hover .scroll-wrapper {
+  animation-play-state: paused;
+}
+
+/* 磁盘告警滚动动画 */
+.disk-scroll .scroll-wrapper {
+  animation: scroll-down 12s linear infinite;
+}
+
+.disk-scroll:hover .scroll-wrapper {
+  animation-play-state: paused;
+}
+
+/* 系统指标切换容器 */
+.metric-switch-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.metric-switch-item {
+  width: 100%;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.metric-item-content {
+  padding: 15px;
+  background: rgba(0, 212, 255, 0.05);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.metric-item-content:hover {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.4);
+}
+
+.metric-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.metric-icon {
+  font-size: 16px;
+}
+
+.metric-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.metric-value-display {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.value-main {
+  font-size: 32px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.value-suffix {
+  font-size: 18px;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+.cpu-color {
+  color: #00d4ff;
+  text-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+}
+
+.memory-color {
+  color: #00ff88;
+  text-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
+}
+
+.metric-bar {
+  width: 100%;
+}
+
+.bar-bg {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.cpu-bar-fill {
+  background: linear-gradient(90deg, #00d4ff, #0099ff);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+}
+
+.memory-bar-fill {
+  background: linear-gradient(90deg, #00ff88, #00cc6a);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
+}
+
+/* 切换指示器 */
+.switch-indicators {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.indicator:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.indicator.active {
+  background: #00d4ff;
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
+}
+
+/* 淡入动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 淡入淡出遮罩 */
+.auto-scroll-container::before,
+.auto-scroll-container::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 30px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.auto-scroll-container::before {
+  top: 0;
+  background: linear-gradient(to bottom, rgba(10, 27, 50, 0.9), transparent);
+}
+
+.auto-scroll-container::after {
+  bottom: 0;
+  background: linear-gradient(to top, rgba(10, 27, 50, 0.9), transparent);
+}
+
+/* 隐藏滚动条但保留功能 */
+.auto-scroll-container::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.auto-scroll-container::-webkit-scrollbar-thumb {
+  width: 0;
+  height: 0;
+}
+
+.auto-scroll-container::-webkit-scrollbar-track {
+  width: 0;
+  height: 0;
+}
+
+/* 悬停时显示滚动条 */
+.auto-scroll-container:hover::-webkit-scrollbar {
+  width: 4px;
+}
+
+.auto-scroll-container:hover::-webkit-scrollbar-thumb {
   background: rgba(0, 212, 255, 0.3);
   border-radius: 2px;
 }
@@ -1018,14 +1569,10 @@ onUnmounted(() => {
 .alert-item.warning .alert-count { color: #ffa502; }
 .alert-item.info .alert-count { color: #00d4ff; }
 
-/* 指标项 */
+/* 指标项样式（保留用于其他可能的使用场景） */
 .metric-item {
-  margin-bottom: 15px;
   flex-shrink: 0;
-}
-
-.metric-item:last-child {
-  margin-bottom: 0;
+  width: 100%;
 }
 
 .metric-label {
@@ -1178,46 +1725,47 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.4);
 }
 
-/* 进程列表 */
-.process-list {
+/* 主机资源列表 */
+.host-resource-list {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
 }
 
-.process-list::-webkit-scrollbar {
+.host-resource-list::-webkit-scrollbar {
   width: 4px;
 }
 
-.process-list::-webkit-scrollbar-thumb {
+.host-resource-list::-webkit-scrollbar-thumb {
   background: rgba(0, 212, 255, 0.3);
   border-radius: 2px;
 }
 
-.empty-process {
+.empty-data {
   text-align: center;
   color: rgba(255, 255, 255, 0.5);
   padding: 20px;
 }
 
-.process-item {
+.host-resource-item {
   display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 10px;
-  margin-bottom: 8px;
-  border-radius: 4px;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 6px;
   background: rgba(0, 212, 255, 0.05);
   transition: all 0.3s;
 }
 
-.process-item:hover {
+.host-resource-item:hover {
   background: rgba(0, 212, 255, 0.1);
+  transform: translateX(2px);
 }
 
-.process-rank {
-  width: 30px;
-  height: 30px;
+.resource-rank {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1225,21 +1773,196 @@ onUnmounted(() => {
   border-radius: 4px;
   font-weight: bold;
   color: #00d4ff;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
-.process-name {
+.resource-info {
   flex: 1;
+  min-width: 0;
+}
+
+.host-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.host-icon {
   font-size: 14px;
+}
+
+.host-text {
+  font-size: 13px;
+  font-weight: bold;
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.process-cpu {
-  font-size: 14px;
+.resource-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.resource-bar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.resource-bar-wrapper {
+  flex: 1;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.resource-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+.cpu-bar {
+  background: linear-gradient(90deg, #00d4ff, #0099ff);
+  box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
+}
+
+.memory-bar {
+  background: linear-gradient(90deg, #00ff88, #00cc6a);
+  box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
+}
+
+.bar-value {
+  font-size: 11px;
   font-weight: bold;
+  width: 48px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.cpu-value {
+  color: #00d4ff;
+}
+
+.memory-value {
   color: #00ff88;
+}
+
+/* 磁盘告警列表 */
+.disk-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.disk-alert-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+.disk-alert-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 165, 2, 0.3);
+  border-radius: 2px;
+}
+
+.disk-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 4px;
+  background: rgba(255, 165, 2, 0.05);
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.disk-alert-item:hover {
+  background: rgba(255, 165, 2, 0.1);
+}
+
+.alert-rank {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 165, 2, 0.2);
+  border-radius: 4px;
+  font-weight: bold;
+  color: #ffa502;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.alert-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-host {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.alert-host .host-icon {
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+.alert-host span:last-child {
+  font-size: 12px;
+  font-weight: bold;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-mountpoint {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alert-usage {
+  font-size: 12px;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.disk-critical {
+  color: #ff4757;
+  background: rgba(255, 71, 87, 0.2);
+}
+
+.disk-warning {
+  color: #ffa502;
+  background: rgba(255, 165, 2, 0.2);
+}
+
+.disk-info {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.2);
 }
 
 /* 底部数据流 */
@@ -1308,10 +2031,16 @@ onUnmounted(() => {
   
   .left-panel,
   .right-panel {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-direction: column;
     gap: 15px;
     height: auto;
+    overflow: visible;
+  }
+  
+  .right-panel .panel-box {
+    flex: none;
+    width: 100%;
   }
   
   .center-panel {

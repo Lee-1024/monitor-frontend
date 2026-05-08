@@ -5,7 +5,7 @@ export interface LLMModelConfig {
   created_at?: string
   updated_at?: string
   name: string
-  provider: string // openai, deepseek, qwen, doubao, zhipu, claude, custom
+  provider: string // openai, deepseek, qwen, doubao, zhipu, claude, minimax, openai_compatible
   api_key: string
   base_url?: string
   model: string

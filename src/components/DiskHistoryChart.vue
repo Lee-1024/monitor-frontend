@@ -103,7 +103,7 @@ const updateChart = () => {
       backgroundColor: 'transparent',
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(50, 50, 50, 0.9)',
+        backgroundColor: 'rgba(50, 50, 50, 0.95)',
         borderColor: '#E6A23C',
         borderWidth: 1,
         textStyle: {
@@ -116,12 +116,18 @@ const updateChart = () => {
             color: '#E6A23C'
           }
         },
+        z: 10000,
         formatter: (params: any) => {
           let result = `<div style="font-weight: 600; margin-bottom: 4px;">${params[0].axisValue}</div>`
-          params.forEach((item: any) => {
+          const maxDisplayItems = 5
+          const displayItems = params.slice(0, maxDisplayItems)
+          displayItems.forEach((item: any) => {
             const numValue = typeof item.value === 'number' ? item.value : parseFloat(item.value) || 0
-            result += `<div style="margin: 2px 0;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
+            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
           })
+          if (params.length > maxDisplayItems) {
+            result += `<div style="margin-top: 4px; color: #909399; font-size: 11px;">...还有 ${params.length - maxDisplayItems} 个挂载点</div>`
+          }
           return result
         }
       },
@@ -211,7 +217,7 @@ const updateChart = () => {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(50, 50, 50, 0.9)',
+      backgroundColor: 'rgba(50, 50, 50, 0.95)',
       borderColor: '#E6A23C',
       borderWidth: 1,
       textStyle: {
@@ -260,6 +266,7 @@ const updateChart = () => {
           }
         }
       },
+      z: 10000,
       formatter: (params: any) => {
         let result = `<div style="font-weight: 600; margin-bottom: 4px;">${params[0].axisValue}</div>`
         if (props.mountpoint) {
@@ -269,10 +276,10 @@ const updateChart = () => {
           const value = item.value
           if (item.seriesName === '已用' || item.seriesName === '总计') {
             const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
-            result += `<div style="margin: 2px 0;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${formatBytes(numValue)}</strong></span></div>`
+            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${formatBytes(numValue)}</strong></span></div>`
           } else {
             const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
-            result += `<div style="margin: 2px 0;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
+            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
           }
         })
         return result

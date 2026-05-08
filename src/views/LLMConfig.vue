@@ -105,7 +105,8 @@
             <el-option label="豆包" value="doubao" />
             <el-option label="智普" value="zhipu" />
             <el-option label="Claude" value="claude" />
-            <el-option label="自定义" value="custom" />
+            <el-option label="MiniMax" value="minimax" />
+            <el-option label="OpenAI兼容（通用）" value="openai_compatible" />
           </el-select>
         </el-form-item>
 
@@ -282,7 +283,7 @@ const rules: FormRules = {
   provider: [{ required: true, message: '请选择提供商', trigger: 'change' }],
   api_key: [
     {
-      validator: (rule: any, value: string, callback: any) => {
+      validator: (_rule: any, value: string, callback: any) => {
         // 如果是编辑模式且值为空，允许（表示不更新密钥）
         if (form.id && !value) {
           callback()
@@ -332,7 +333,12 @@ const providerDefaults: Record<string, { baseURL: string; model: string; models:
     model: 'claude-3-sonnet-20240229',
     models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku']
   },
-  custom: {
+  minimax: {
+    baseURL: 'https://api.minimax.chat/v1/text/chatcompletion_v2',
+    model: 'MiniMax-Text-01',
+    models: ['MiniMax-Text-01']
+  },
+  openai_compatible: {
     baseURL: '',
     model: '',
     models: []
@@ -347,7 +353,8 @@ const getProviderName = (provider: string) => {
     doubao: '豆包',
     zhipu: '智普',
     claude: 'Claude',
-    custom: '自定义'
+    minimax: 'MiniMax',
+    openai_compatible: 'OpenAI兼容'
   }
   return names[provider] || provider
 }
@@ -360,7 +367,8 @@ const getProviderTagType = (provider: string) => {
     doubao: 'success',
     zhipu: 'info',
     claude: 'warning',
-    custom: ''
+    minimax: 'danger',
+    openai_compatible: ''
   }
   return types[provider] || ''
 }
@@ -427,12 +435,10 @@ const loadConfigs = async () => {
       const newItem: LLMModelConfig = { ...item }
       // 记录原始值
       const originalIsDefault = newItem.is_default
-      // 确保 is_default 是布尔值（处理可能的字符串 "true"/"false"）
-      if (newItem.is_default !== undefined && newItem.is_default !== null) {
-        newItem.is_default = newItem.is_default === true || newItem.is_default === 'true' || newItem.is_default === 1 || String(newItem.is_default).toLowerCase() === 'true'
-      } else {
-        newItem.is_default = false
-      }
+      // 确保 is_default 是布尔值（处理可能的字符串 "true"/"false"或数字1）
+      const rawValue = newItem.is_default as boolean | string | number | undefined
+      const isDefault = Boolean(rawValue === true || rawValue === 'true' || rawValue === 1 || (typeof rawValue === 'string' && rawValue.toLowerCase() === 'true'))
+      newItem.is_default = isDefault
       console.log(`loadConfigs: 处理后的项[${index}]: ID=${newItem.id}, 名称=${newItem.name}, 原始is_default=${JSON.stringify(originalIsDefault)}, 处理后is_default=${newItem.is_default} (类型: ${typeof newItem.is_default})`)
       return newItem
     })

@@ -21,6 +21,15 @@
               <el-option label="INFO" value="INFO" />
               <el-option label="DEBUG" value="DEBUG" />
             </el-select>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              style="margin-left: 10px; width: 240px"
+              @change="handleDateChange"
+            />
             <el-button type="primary" @click="loadLogs" style="margin-left: 10px">
               <el-icon><Refresh /></el-icon>
               刷新
@@ -28,6 +37,36 @@
           </div>
         </div>
       </template>
+
+      <!-- 日志统计信息 -->
+      <div class="log-stats" style="margin-bottom: 15px; padding: 10px; background: #f5f7fa; border-radius: 4px;">
+        <el-row :gutter="20">
+          <el-col :span="6">
+            <div class="stat-item">
+              <span class="stat-label">ERROR:</span>
+              <span class="stat-value error">{{ logStats.error }}</span>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="stat-item">
+              <span class="stat-label">WARN:</span>
+              <span class="stat-value warn">{{ logStats.warn }}</span>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="stat-item">
+              <span class="stat-label">INFO:</span>
+              <span class="stat-value info">{{ logStats.info }}</span>
+            </div>
+          </el-col>
+          <el-col :span="6">
+            <div class="stat-item">
+              <span class="stat-label">总计:</span>
+              <span class="stat-value total">{{ logStats.total }}</span>
+            </div>
+          </el-col>
+        </el-row>
+      </div>
 
       <el-table
         v-loading="loading"
@@ -81,7 +120,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -100,9 +139,40 @@ interface LogInfo {
 
 const loading = ref(false)
 const selectedHost = ref('')
-const selectedLevel = ref('')
+const selectedLevel = ref('ERROR') // 默认筛选ERROR级别
 const agents = ref<Agent[]>([])
 const logs = ref<LogInfo[]>([])
+const dateRange = ref<[Date, Date] | null>(null)
+
+// 日志统计
+const logStats = computed(() => {
+  const stats = {
+    error: 0,
+    warn: 0,
+    info: 0,
+    debug: 0,
+    total: logs.value.length
+  }
+  
+  logs.value.forEach(log => {
+    switch (log.level?.toUpperCase()) {
+      case 'ERROR':
+        stats.error++
+        break
+      case 'WARN':
+        stats.warn++
+        break
+      case 'INFO':
+        stats.info++
+        break
+      case 'DEBUG':
+        stats.debug++
+        break
+    }
+  })
+  
+  return stats
+})
 
 // 分页相关
 const pagination = ref({
@@ -132,6 +202,11 @@ const loadLogs = async () => {
     }
     if (selectedLevel.value) {
       params.level = selectedLevel.value
+    }
+    // 添加时间范围筛选
+    if (dateRange.value && dateRange.value.length === 2) {
+      params.start = dayjs(dateRange.value[0]).startOf('day').toISOString()
+      params.end = dayjs(dateRange.value[1]).endOf('day').toISOString()
     }
     
     const res = await axios.get('/v1/logs', { params }) as unknown as ApiResponse<{ logs: LogInfo[], total: number, page: number, page_size: number }>
@@ -164,6 +239,12 @@ const handleHostChange = () => {
 
 // 日志级别改变
 const handleLevelChange = () => {
+  pagination.value.page = 1 // 重置到第一页
+  loadLogs()
+}
+
+// 日期范围改变
+const handleDateChange = () => {
   pagination.value.page = 1 // 重置到第一页
   loadLogs()
 }
@@ -218,6 +299,42 @@ onMounted(() => {
 .header-actions {
   display: flex;
   align-items: center;
+}
+
+.log-stats {
+  margin-bottom: 15px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.stat-value {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.stat-value.error {
+  color: #f56c6c;
+}
+
+.stat-value.warn {
+  color: #e6a23c;
+}
+
+.stat-value.info {
+  color: #409eff;
+}
+
+.stat-value.total {
+  color: #303133;
 }
 
 .statistics-info {
