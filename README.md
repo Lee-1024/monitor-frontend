@@ -374,11 +374,11 @@ LLM分析结果使用Server-Sent Events (SSE)进行流式输出：
 
 ## 许可证
 
-[添加您的许可证信息]
+MIT license
 
 ## 联系方式
 
-[添加联系方式]
+WX:Li1024_REBOOT
 
 ## 相关文档
 
