@@ -56,6 +56,10 @@
         <el-icon><TrendCharts /></el-icon>
         <template #title>AI分析</template>
       </el-menu-item>
+      <el-menu-item index="/ops-assistant">
+        <el-icon><MagicStick /></el-icon>
+        <template #title>运维助手</template>
+      </el-menu-item>
       <el-menu-item index="/knowledge">
         <el-icon><Document /></el-icon>
         <template #title>知识库</template>

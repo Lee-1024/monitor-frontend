@@ -91,6 +91,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'AI分析', requiresAuth: true }
   },
   {
+    path: '/ops-assistant',
+    name: 'OpsAssistant',
+    component: () => import('@/views/OpsAssistant.vue'),
+    meta: { title: '运维助手', requiresAuth: true }
+  },
+  {
     path: '/knowledge',
     name: 'Knowledge',
     component: () => import('@/views/Knowledge.vue'),
