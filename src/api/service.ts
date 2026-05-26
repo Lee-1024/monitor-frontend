@@ -1,5 +1,4 @@
 import { axios } from '@/utils/request'
-import type { ApiResponse } from '@/types'
 
 export interface ServiceInfo {
   id: number
@@ -21,5 +20,13 @@ export function getServices(hostId?: string) {
     params.host_id = hostId
   }
   return axios.get<ServiceInfo[]>('/v1/services', { params })
+}
+
+export function deleteServiceStatus(hostId?: string) {
+  const params: any = {}
+  if (hostId) {
+    params.host_id = hostId
+  }
+  return axios.delete('/v1/services', { params })
 }
 

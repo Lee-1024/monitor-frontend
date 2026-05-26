@@ -18,6 +18,9 @@
               <el-icon><Refresh /></el-icon>
               刷新
             </el-button>
+            <el-button type="danger" :loading="cleaning" @click="handleClearServiceHistory" style="margin-left: 10px">
+              清理历史
+            </el-button>
           </div>
         </div>
       </template>
@@ -77,10 +80,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
+import { deleteServiceStatus } from '@/api/service'
 import type { Agent, ApiResponse } from '@/types'
 
 interface ServiceInfo {
@@ -97,6 +101,7 @@ interface ServiceInfo {
 }
 
 const loading = ref(false)
+const cleaning = ref(false)
 const selectedHost = ref('')
 const agents = ref<Agent[]>([])
 const services = ref<ServiceInfo[]>([])
@@ -124,6 +129,38 @@ const loadServices = async () => {
     ElMessage.error('加载服务状态失败')
   } finally {
     loading.value = false
+  }
+}
+
+const getSelectedHostLabel = () => {
+  const agent = agents.value.find((item) => item.host_id === selectedHost.value)
+  return agent ? `${agent.hostname || agent.host_id} (${agent.host_id})` : selectedHost.value
+}
+
+const handleClearServiceHistory = async () => {
+  const scopeText = selectedHost.value ? `主机 ${getSelectedHostLabel()}` : '全部主机'
+  try {
+    await ElMessageBox.confirm(
+      `确定要清理${scopeText}的服务状态历史数据吗？清理后页面会等待 Agent 下一次上报新数据。`,
+      '清理服务状态历史',
+      {
+        confirmButtonText: '确定清理',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+
+    cleaning.value = true
+    const res = await deleteServiceStatus(selectedHost.value || undefined) as unknown as ApiResponse<{ deleted_count: number }>
+    const deletedCount = res.data?.deleted_count || 0
+    ElMessage.success(`已清理 ${deletedCount} 条服务状态历史数据`)
+    await loadServices()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('清理服务状态历史数据失败')
+    }
+  } finally {
+    cleaning.value = false
   }
 }
 
