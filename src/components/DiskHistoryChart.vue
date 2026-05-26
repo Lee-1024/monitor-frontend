@@ -143,9 +143,9 @@ const updateChart = () => {
         type: 'scroll'
       },
       grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '8%',
+        left: 64,
+        right: 40,
+        bottom: 48,
         top: '20%',
         containLabel: true
       },
@@ -158,10 +158,12 @@ const updateChart = () => {
             color: '#E4E7ED'
           }
         },
-        axisLabel: {
-          color: '#909399',
-          fontSize: 11
-        },
+          axisLabel: {
+            color: '#909399',
+            fontSize: 11,
+            hideOverlap: true,
+            margin: 14
+          },
         splitLine: {
           show: false
         }
@@ -296,9 +298,9 @@ const updateChart = () => {
       itemGap: 20
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '8%',
+        left: 64,
+        right: 40,
+        bottom: 48,
       top: '18%',
       containLabel: true
     },
@@ -311,10 +313,12 @@ const updateChart = () => {
           color: '#E4E7ED'
         }
       },
-      axisLabel: {
-        color: '#909399',
-        fontSize: 11
-      },
+        axisLabel: {
+          color: '#909399',
+          fontSize: 11,
+          hideOverlap: true,
+          margin: 14
+        },
       splitLine: {
         show: false
       }

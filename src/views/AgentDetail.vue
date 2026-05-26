@@ -117,16 +117,16 @@
               <span class="metric-title">网络</span>
             </div>
             <div class="metric-value-wrapper">
-              <div class="metric-value-small">{{ formatBytes(latestMetrics.network?.bytes_recv || 0) }}</div>
+              <div class="metric-value-small">{{ networkRealtime.recv }}</div>
             </div>
             <div class="metric-details">
               <div class="detail-item">
                 <span class="detail-label">发送</span>
-                <span class="detail-value">{{ formatBytes(latestMetrics.network?.bytes_sent || 0) }}</span>
+                <span class="detail-value">{{ networkRealtime.sent }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">接收</span>
-                <span class="detail-value">{{ formatBytes(latestMetrics.network?.bytes_recv || 0) }}</span>
+                <span class="detail-value">{{ networkRealtime.recv }}</span>
               </div>
               <div class="detail-item">
                 <span class="detail-label">错误</span>
@@ -241,7 +241,7 @@
     <!-- 第一行：CPU 和 内存 -->
     <el-row :gutter="20" style="margin-top: 24px">
       <!-- CPU使用率趋势 -->
-      <el-col :xs="24" :lg="12">
+      <el-col :xs="24">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -264,7 +264,7 @@
       </el-col>
       
       <!-- 内存使用率趋势 -->
-      <el-col :xs="24" :lg="12">
+      <el-col :xs="24">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -290,7 +290,7 @@
     <!-- 第二行：磁盘 和 网络 -->
     <el-row :gutter="20" style="margin-top: 20px">
       <!-- 磁盘使用趋势 - 所有挂载点在一个图表中 -->
-      <el-col :xs="24" :lg="12" v-if="diskPartitions.length > 0">
+      <el-col :xs="24" v-if="diskPartitions.length > 0">
         <el-card shadow="hover" class="chart-card disk-chart-card">
           <template #header>
             <div class="card-header">
@@ -325,7 +325,7 @@
       </el-col>
       
       <!-- 网络流量趋势 -->
-      <el-col :xs="24" :lg="12">
+      <el-col :xs="24">
         <el-card shadow="hover" class="chart-card">
           <template #header>
             <div class="card-header">
@@ -351,7 +351,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Refresh, Folder } from '@element-plus/icons-vue'
@@ -519,6 +519,37 @@ const formatBytes = (bytes: number) => {
   const value = bytes / Math.pow(k, sizeIndex)
   return Math.round(value * 100) / 100 + ' ' + sizes[sizeIndex]
 }
+
+const formatBytesPerSecond = (bytes: number) => `${formatBytes(bytes)}/s`
+
+const networkRealtime = computed(() => {
+  if (networkHistory.value.length < 2) {
+    return {
+      sent: '0 B/s',
+      recv: '0 B/s'
+    }
+  }
+
+  const prevPoint = networkHistory.value[networkHistory.value.length - 2]
+  const currPoint = networkHistory.value[networkHistory.value.length - 1]
+  if (!prevPoint || !currPoint) {
+    return {
+      sent: '0 B/s',
+      recv: '0 B/s'
+    }
+  }
+
+  const seconds = Math.max(dayjs(currPoint.timestamp).diff(dayjs(prevPoint.timestamp), 'second'), 1)
+  const prev = prevPoint.values || {}
+  const curr = currPoint.values || {}
+  const sent = Math.max(((curr.bytes_sent || 0) - (prev.bytes_sent || 0)) / seconds, 0)
+  const recv = Math.max(((curr.bytes_recv || 0) - (prev.bytes_recv || 0)) / seconds, 0)
+
+  return {
+    sent: formatBytesPerSecond(sent),
+    recv: formatBytesPerSecond(recv)
+  }
+})
 
 // 获取CPU使用率颜色
 const getCpuColor = (percent: number) => {
@@ -992,7 +1023,7 @@ onUnmounted(() => {
 
 .chart-container {
   padding: 8px 0;
-  min-height: 350px;
+  min-height: 420px;
 }
 
 /* 图表卡片布局优化 */
@@ -1010,7 +1041,7 @@ onUnmounted(() => {
 
 .chart-card .chart-container {
   flex: 1;
-  min-height: 350px;
+  min-height: 420px;
   position: relative;
   z-index: 2;
 }

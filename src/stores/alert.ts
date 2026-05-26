@@ -28,8 +28,7 @@ export const useAlertStore = defineStore('alert', () => {
 
   // 清除未读提示
   const clearUnread = () => {
-    unreadCount.value = 0
-    lastUpdateTime.value = Date.now()
+    fetchUnreadCount()
   }
 
   // 开始轮询

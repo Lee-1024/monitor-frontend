@@ -61,8 +61,9 @@ const updateChart = () => {
     }
     const prev = prevItem.values || {}
     const curr = currItem.values || {}
-    const deltaSent = (curr.bytes_sent || 0) - (prev.bytes_sent || 0)
-    const deltaRecv = (curr.bytes_recv || 0) - (prev.bytes_recv || 0)
+    const seconds = Math.max(dayjs(currItem.timestamp).diff(dayjs(prevItem.timestamp), 'second'), 1)
+    const deltaSent = ((curr.bytes_sent || 0) - (prev.bytes_sent || 0)) / seconds
+    const deltaRecv = ((curr.bytes_recv || 0) - (prev.bytes_recv || 0)) / seconds
     sent.push(Math.max(deltaSent, 0))
     recv.push(Math.max(deltaRecv, 0))
   }
@@ -118,9 +119,9 @@ const updateChart = () => {
       itemGap: 20
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '8%',
+      left: 56,
+      right: 56,
+      bottom: 48,
       top: '15%',
       containLabel: true
     },
@@ -130,7 +131,8 @@ const updateChart = () => {
       data: times,
       axisLabel: {
         fontSize: 12,
-        rotate: 0
+        hideOverlap: true,
+        margin: 14
       }
     },
     yAxis: {

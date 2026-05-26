@@ -1,6 +1,5 @@
 <template>
   <div class="nav-container">
-    <!-- 左侧菜单 -->
     <el-menu
       :default-active="activeMenu"
       mode="vertical"
@@ -73,64 +72,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { Monitor, Grid, Warning, User, ArrowDown, SwitchButton, Document, Tools, Connection, Bell, Setting, TrendCharts, Search, MagicStick } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import {
+  Bell,
+  Connection,
+  Document,
+  Grid,
+  MagicStick,
+  Monitor,
+  Search,
+  Tools,
+  TrendCharts,
+  User,
+  Warning
+} from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
-import { useAlertStore } from '@/stores/alert'
 
 const route = useRoute()
-const router = useRouter()
 const userStore = useUserStore()
-const alertStore = useAlertStore()
 
 const activeMenu = computed(() => route.path)
-
-const handleCommand = (command: string) => {
-  if (command === 'logout') {
-    userStore.logout()
-    alertStore.stopPolling()
-  }
-}
-
-// 处理站内信点击
-const handleNotificationClick = () => {
-  // 清除未读提示
-  alertStore.clearUnread()
-  // 跳转到告警历史页面
-  // 如果当前已经在 /alerts 页面，使用 nextTick 确保路由更新
-  if (route.path === '/alerts') {
-    // 使用 replace 更新 query 参数，保留其他参数
-    const newQuery: Record<string, any> = { ...route.query }
-    newQuery.tab = 'history'
-    router.replace({
-      path: '/alerts',
-      query: newQuery
-    }).catch(() => {
-      // 如果 replace 失败，尝试 push
-      router.push('/alerts?tab=history')
-    })
-  } else {
-    router.push('/alerts?tab=history')
-  }
-}
-
-onMounted(() => {
-  // 初始化用户信息
-  if (localStorage.getItem('token') && !userStore.userInfo) {
-    userStore.initAuth()
-  }
-  
-  // 如果是管理员，开始轮询未读告警数量
-  if (userStore.isAdmin) {
-    alertStore.startPolling()
-  }
-})
-
-onUnmounted(() => {
-  // 组件卸载时停止轮询
-  alertStore.stopPolling()
-})
 </script>
 
 <style scoped>
@@ -168,7 +130,6 @@ onUnmounted(() => {
   background: #bbb;
 }
 
-/* 菜单项样式优化 */
 :deep(.el-menu-item) {
   height: 48px;
   line-height: 48px;
@@ -206,4 +167,3 @@ onUnmounted(() => {
   font-size: 14px;
 }
 </style>
-

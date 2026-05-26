@@ -165,9 +165,9 @@ const updateChart = () => {
       itemGap: 20
     },
     grid: {
-      left: '3%',
-      right: '4%',
-      bottom: '8%',
+      left: 56,
+      right: 56,
+      bottom: 48,
       top: '15%',
       containLabel: true
     },
@@ -177,7 +177,8 @@ const updateChart = () => {
       data: times,
       axisLabel: {
         fontSize: 12,
-        rotate: 0
+        hideOverlap: true,
+        margin: 14
       }
     },
     yAxis: [

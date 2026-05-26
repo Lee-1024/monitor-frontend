@@ -2,7 +2,6 @@
 // 文件: api/alert.ts
 // ============================================
 import request from '@/utils/request'
-import type { ApiResponse } from '@/types'
 
 // 通知渠道相关类型
 export interface NotificationChannel {

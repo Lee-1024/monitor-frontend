@@ -60,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Monitor, User, ArrowDown, SwitchButton, Bell } from '@element-plus/icons-vue'
 import { useUserStore } from '@/stores/user'
@@ -70,6 +70,14 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const alertStore = useAlertStore()
+
+const syncAlertPolling = () => {
+  if (userStore.isAdmin) {
+    alertStore.startPolling()
+  } else {
+    alertStore.stopPolling()
+  }
+}
 
 const handleCommand = (command: string) => {
   if (command === 'logout') {
@@ -100,14 +108,15 @@ const handleNotificationClick = () => {
 onMounted(() => {
   // 初始化用户信息
   if (localStorage.getItem('token') && !userStore.userInfo) {
-    userStore.initAuth()
+    userStore.initAuth().finally(syncAlertPolling)
+  } else {
+    syncAlertPolling()
   }
   
   // 如果是管理员，开始轮询未读告警数量
-  if (userStore.isAdmin) {
-    alertStore.startPolling()
-  }
 })
+
+watch(() => userStore.isAdmin, syncAlertPolling)
 
 onUnmounted(() => {
   // 组件卸载时停止轮询
