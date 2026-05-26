@@ -465,8 +465,8 @@ const fetchTopMetrics = async () => {
       getTopMetrics({ type: 'memory', limit: 10, order: 'desc' })
     ])
     
-    const cpuData = (cpuRes as unknown as ApiResponse<any[]>).data || []
-    const memoryData = (memoryRes as unknown as ApiResponse<any[]>).data || []
+    const cpuData = ((cpuRes as unknown as ApiResponse<any[]>).data || []).slice(0, 10)
+    const memoryData = ((memoryRes as unknown as ApiResponse<any[]>).data || []).slice(0, 10)
     
     updateCPUChart(cpuData)
     updateMemoryChart(memoryData)

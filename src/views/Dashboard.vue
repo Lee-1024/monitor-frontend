@@ -162,7 +162,7 @@ const fetchOverview = async () => {
 const refreshTopCPU = async () => {
   try {
     const res = await getTopMetrics({ type: 'cpu', limit: 10, order: 'desc' }) as unknown as ApiResponse<any[]>
-    topCPU.value = res.data || []
+    topCPU.value = (res.data || []).slice(0, 10)
   } catch (error) {
     console.error('Failed to fetch top CPU:', error)
     topCPU.value = []
@@ -173,7 +173,7 @@ const refreshTopCPU = async () => {
 const refreshTopMemory = async () => {
   try {
     const res = await getTopMetrics({ type: 'memory', limit: 10, order: 'desc' }) as unknown as ApiResponse<any[]>
-    topMemory.value = res.data || []
+    topMemory.value = (res.data || []).slice(0, 10)
   } catch (error) {
     console.error('Failed to fetch top memory:', error)
     topMemory.value = []

@@ -97,6 +97,7 @@
             </div>
           </template>
         </el-table-column>
+        <el-table-column prop="host_id" label="主机ID" width="180" show-overflow-tooltip />
         <el-table-column prop="hostname" label="主机名" width="200" />
         <el-table-column prop="ip" label="IP地址" width="150" />
         <el-table-column label="状态" width="100">
