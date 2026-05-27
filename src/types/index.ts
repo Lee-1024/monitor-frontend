@@ -37,6 +37,27 @@ export interface LatestMetrics {
   }
   disk: Record<string, any>
   network: Record<string, any>
+  gpu?: GPUMetrics
+}
+
+export interface GPUDeviceMetrics {
+  index: number
+  name: string
+  vendor: string
+  model?: string
+  uuid?: string
+  driver_version?: string
+  utilization_percent: number
+  memory_total: number
+  memory_used: number
+  memory_used_percent: number
+  temperature: number
+  power_watts: number
+  fan_speed_percent: number
+}
+
+export interface GPUMetrics {
+  devices: GPUDeviceMetrics[]
 }
 
 // 概览统计
@@ -46,6 +67,8 @@ export interface Overview {
   offline_agents: number
   avg_cpu: number
   avg_memory: number
+  avg_gpu?: number
+  gpu_devices?: number
   total_metrics: number
 }
 

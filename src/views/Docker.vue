@@ -6,7 +6,6 @@
           <span>Docker容器趋势</span>
           <div class="header-actions">
             <el-select v-model="selectedHost" placeholder="选择主机" class="host-select" @change="reloadAll">
-              <el-option label="全部主机" value="" />
               <el-option
                 v-for="agent in agents"
                 :key="agent.host_id"
@@ -143,6 +142,9 @@ async function loadAgents() {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
     agents.value = res.data?.agents || []
+    if (!selectedHost.value && agents.value.length > 0) {
+      selectedHost.value = agents.value[0].host_id
+    }
   } catch (error) {
     console.error('Failed to load agents:', error)
   }
@@ -233,9 +235,10 @@ function formatBytes(bytes: number) {
 }
 
 onMounted(() => {
-  loadAgents()
-  loadContainers()
-  loadHistory()
+  loadAgents().finally(() => {
+    loadContainers()
+    loadHistory()
+  })
 })
 </script>
 

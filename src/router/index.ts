@@ -55,6 +55,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Docker监控', requiresAuth: true }
   },
   {
+    path: '/gpu',
+    name: 'GPU',
+    component: () => import('@/views/GPU.vue'),
+    meta: { title: 'GPU监控', requiresAuth: true }
+  },
+  {
     path: '/logs',
     name: 'Logs',
     component: () => import('@/views/Logs.vue'),

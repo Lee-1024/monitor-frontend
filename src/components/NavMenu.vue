@@ -31,6 +31,10 @@
         <el-icon><Box /></el-icon>
         <template #title>Docker监控</template>
       </el-menu-item>
+      <el-menu-item index="/gpu">
+        <el-icon><DataLine /></el-icon>
+        <template #title>GPU监控</template>
+      </el-menu-item>
       <el-menu-item index="/logs">
         <el-icon><Document /></el-icon>
         <template #title>日志查看</template>
@@ -82,6 +86,7 @@ import {
   Bell,
   Box,
   Connection,
+  DataLine,
   Document,
   Grid,
   MagicStick,

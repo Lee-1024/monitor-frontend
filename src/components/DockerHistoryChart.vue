@@ -56,12 +56,17 @@ function updateChart() {
   chart.setOption({
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      appendToBody: false,
+      className: 'docker-chart-tooltip',
       formatter: (params: any) => {
         if (!Array.isArray(params) || params.length === 0) return ''
         let html = `${params[0].axisValue}<br/>`
         params.forEach((item: any) => {
           if (item.value !== null && item.value !== undefined) {
-            html += `${item.marker} ${item.seriesName}: <strong>${Number(item.value).toFixed(2)}%</strong><br/>`
+            const name = escapeHtml(String(item.seriesName || 'unknown'))
+            const shortName = escapeHtml(truncateContainerName(String(item.seriesName || 'unknown')))
+            html += `<div class="docker-tooltip-row">${item.marker}<span class="docker-tooltip-name" title="${name}">${shortName}</span><strong>${Number(item.value).toFixed(2)}%</strong></div>`
           }
         })
         return html
@@ -98,6 +103,20 @@ function updateChart() {
   }, true)
 }
 
+function truncateContainerName(name: string) {
+  if (name.length <= 36) return name
+  return `${name.slice(0, 18)}...${name.slice(-12)}`
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 watch(() => [props.data, props.metricType], updateChart, { deep: true })
 
 onMounted(() => {
@@ -115,5 +134,27 @@ onUnmounted(() => {
 .docker-chart {
   width: 100%;
   height: 400px;
+}
+
+:global(.docker-chart-tooltip) {
+  max-width: 360px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+:global(.docker-tooltip-row) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  max-width: 340px;
+  line-height: 20px;
+}
+
+:global(.docker-tooltip-name) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>
