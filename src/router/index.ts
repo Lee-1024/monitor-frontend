@@ -49,6 +49,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '进程监控', requiresAuth: true }
   },
   {
+    path: '/docker',
+    name: 'Docker',
+    component: () => import('@/views/Docker.vue'),
+    meta: { title: 'Docker监控', requiresAuth: true }
+  },
+  {
     path: '/logs',
     name: 'Logs',
     component: () => import('@/views/Logs.vue'),

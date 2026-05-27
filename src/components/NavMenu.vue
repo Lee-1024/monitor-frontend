@@ -27,6 +27,10 @@
         <el-icon><Monitor /></el-icon>
         <template #title>进程监控</template>
       </el-menu-item>
+      <el-menu-item index="/docker">
+        <el-icon><Box /></el-icon>
+        <template #title>Docker监控</template>
+      </el-menu-item>
       <el-menu-item index="/logs">
         <el-icon><Document /></el-icon>
         <template #title>日志查看</template>
@@ -76,6 +80,7 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import {
   Bell,
+  Box,
   Connection,
   Document,
   Grid,
