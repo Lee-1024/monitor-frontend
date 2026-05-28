@@ -423,13 +423,15 @@
         </el-form-item>
         <el-form-item label="主机ID" prop="host_id">
           <el-select 
-            v-model="ruleForm.host_id" 
-            placeholder="选择主机（留空表示所有主机）" 
-            clearable 
+            v-model="ruleForm.host_ids"
+            placeholder="选择主机（不选表示所有主机）"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            clearable
             filterable
             @change="handleHostIdChange"
           >
-            <el-option label="全部主机" value="" />
             <el-option
               v-for="agent in agents"
               :key="agent.host_id"
@@ -741,11 +743,12 @@ const ruleDialogTitle = computed(() => isEditRule.value ? '编辑告警规则' :
 const isEditRule = ref(false)
 const ruleSubmitLoading = ref(false)
 const ruleFormRef = ref<FormInstance>()
-const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string }>({
+const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string; host_ids: string[] }>({
   name: '',
   description: '',
   metric_type: 'cpu',
   host_id: '',
+  host_ids: [],
   mountpoint: '',
   service_port: undefined,
   condition: 'gte',
@@ -764,6 +767,10 @@ const availableServicePorts = ref<number[]>([])
 
 const noThresholdMetricTypes = ['host_down', 'service_port', 'gpu_unavailable']
 const isNoThresholdMetric = (metricType: string) => noThresholdMetricTypes.includes(metricType)
+const splitRuleHostIDs = (hostID?: string) => (hostID || '')
+  .split(',')
+  .map(id => id.trim())
+  .filter(Boolean)
 
 const ruleFormRules: FormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
@@ -1164,7 +1171,7 @@ const handleCreateRule = () => {
   resetRuleForm()
   // 如果选择的是服务端口类型，确保加载端口列表
   if (ruleForm.metric_type === 'service_port') {
-    loadAvailableServicePorts(ruleForm.host_id)
+    loadAvailableServicePorts()
   }
   ruleDialogVisible.value = true
 }
@@ -1177,6 +1184,7 @@ const handleEditRule = (rule: AlertRule) => {
     description: rule.description,
     metric_type: rule.metric_type,
     host_id: rule.host_id,
+    host_ids: splitRuleHostIDs(rule.host_id),
     mountpoint: rule.mountpoint || '',
     service_port: rule.service_port,
     condition: rule.condition,
@@ -1193,7 +1201,7 @@ const handleEditRule = (rule: AlertRule) => {
   
   // 如果是服务端口类型，加载端口列表（根据编辑的主机ID）
   if (rule.metric_type === 'service_port') {
-    loadAvailableServicePorts(rule.host_id)
+    loadAvailableServicePorts()
   }
   ruleDialogVisible.value = true
 }
@@ -1257,7 +1265,7 @@ const handleRuleSubmit = async () => {
           name: ruleForm.name,
           description: ruleForm.description,
           metric_type: ruleForm.metric_type,
-          host_id: ruleForm.host_id || '',
+          host_id: (ruleForm.host_ids || []).join(','),
           mountpoint: ruleForm.metric_type === 'disk' ? (ruleForm.mountpoint || '') : '',
           service_port: ruleForm.metric_type === 'service_port' ? (ruleForm.service_port || 0) : 0,
           condition: !isNoThresholdMetric(ruleForm.metric_type || '') ? ruleForm.condition : '',
@@ -1294,6 +1302,7 @@ const resetRuleForm = () => {
     description: '',
     metric_type: 'cpu',
     host_id: '',
+    host_ids: [],
     mountpoint: '',
     service_port: undefined,
     condition: 'gte',
@@ -1632,8 +1641,8 @@ watch(() => route.fullPath, (newPath, oldPath) => {
 // 加载可用的服务端口列表
 const loadAvailableServicePorts = async (hostId?: string) => {
   try {
-    // 如果传入了主机ID，使用它；否则使用表单中选择的主机ID
-    const targetHostId = hostId !== undefined ? hostId : (ruleForm.host_id || undefined)
+    // 多主机关联时加载全部端口，避免只展示某一台主机的端口。
+    const targetHostId = hostId !== undefined ? hostId : undefined
     
     const res = await getServices(targetHostId)
     console.log('[loadAvailableServicePorts] Response for hostId:', targetHostId, res)
@@ -1690,10 +1699,10 @@ const loadAvailableServicePorts = async (hostId?: string) => {
 }
 
 // 处理主机ID变化
-const handleHostIdChange = (hostId: string) => {
+const handleHostIdChange = () => {
   // 如果是服务端口类型的告警规则，根据主机ID重新加载端口列表
   if (ruleForm.metric_type === 'service_port') {
-    loadAvailableServicePorts(hostId)
+    loadAvailableServicePorts()
     // 如果切换了主机，清空已选择的端口（因为可能新主机没有这个端口）
     ruleForm.service_port = undefined
   }
@@ -1702,7 +1711,7 @@ const handleHostIdChange = (hostId: string) => {
 // 监听指标类型变化，如果是服务端口类型，加载端口列表
 watch(() => ruleForm.metric_type, (newType) => {
   if (newType === 'service_port') {
-    loadAvailableServicePorts(ruleForm.host_id)
+    loadAvailableServicePorts()
   }
 })
 
