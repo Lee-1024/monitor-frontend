@@ -92,13 +92,13 @@
             </el-table-column>
             <el-table-column prop="condition" label="条件" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type !== 'host_down' && row.metric_type !== 'service_port'">{{ getConditionName(row.condition) }}</span>
+                <span v-if="!isNoThresholdMetric(row.metric_type)">{{ getConditionName(row.condition) }}</span>
                 <span v-else>-</span>
               </template>
             </el-table-column>
             <el-table-column prop="threshold" label="阈值" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type !== 'host_down' && row.metric_type !== 'service_port'">{{ row.threshold }}</span>
+                <span v-if="!isNoThresholdMetric(row.metric_type)">{{ row.threshold }}</span>
                 <span v-else-if="row.metric_type === 'service_port'">端口: {{ row.service_port || '-' }}</span>
                 <span v-else>-</span>
               </template>
@@ -252,13 +252,13 @@
             </el-table-column>
             <el-table-column prop="metric_value" label="指标值" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type === 'host_down' || row.metric_type === 'service_port'">-</span>
+                <span v-if="isNoThresholdMetric(row.metric_type)">-</span>
                 <span v-else>{{ row.metric_value != null ? row.metric_value.toFixed(2) : '-' }}</span>
               </template>
             </el-table-column>
             <el-table-column prop="threshold" label="阈值" width="100">
               <template #default="{ row }">
-                <span v-if="row.metric_type === 'host_down' || row.metric_type === 'service_port'">-</span>
+                <span v-if="isNoThresholdMetric(row.metric_type)">-</span>
                 <span v-else>{{ row.threshold != null ? row.threshold : '-' }}</span>
               </template>
             </el-table-column>
@@ -418,6 +418,7 @@
             <el-option label="网络" value="network" />
             <el-option label="主机宕机" value="host_down" />
             <el-option label="服务端口" value="service_port" />
+            <el-option label="GPU不可用" value="gpu_unavailable" />
           </el-select>
         </el-form-item>
         <el-form-item label="主机ID" prop="host_id">
@@ -462,7 +463,7 @@
           </el-select>
           <span style="margin-left: 10px; color: #909399">从服务监控页面配置的端口中选择</span>
         </el-form-item>
-        <el-form-item label="条件" prop="condition" v-if="ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port'">
+        <el-form-item label="条件" prop="condition" v-if="!isNoThresholdMetric(ruleForm.metric_type || '')">
           <el-select v-model="ruleForm.condition" placeholder="请选择条件">
             <el-option label="大于 (>) " value="gt" />
             <el-option label="大于等于 (>=)" value="gte" />
@@ -472,7 +473,7 @@
             <el-option label="不等于 (!=)" value="neq" />
           </el-select>
         </el-form-item>
-        <el-form-item label="阈值" prop="threshold" v-if="ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port'">
+        <el-form-item label="阈值" prop="threshold" v-if="!isNoThresholdMetric(ruleForm.metric_type || '')">
           <el-input-number 
             v-model="ruleForm.threshold" 
             :precision="2" 
@@ -490,7 +491,7 @@
             show-icon
           >
             <template #default>
-              主机宕机告警：当Agent通信失败（超过2分钟未收到心跳）时立即触发告警。无需设置阈值。
+              主机宕机告警：当Agent通信失败并持续达到规则设置时间后触发告警。无需设置阈值。
             </template>
           </el-alert>
         </el-form-item>
@@ -501,7 +502,18 @@
             show-icon
           >
             <template #default>
-              服务端口告警：当指定端口的服务不可访问时立即触发告警。端口数据来自服务监控页面中Agent配置的服务端口。
+              服务端口告警：当指定端口的服务不可访问并持续达到规则设置时间后触发告警。端口数据来自服务监控页面中Agent配置的服务端口。
+            </template>
+          </el-alert>
+        </el-form-item>
+        <el-form-item v-if="ruleForm.metric_type === 'gpu_unavailable'" label="说明">
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              GPU不可用告警：当主机最新指标中未检测到可用显卡设备，并持续达到规则设置时间后触发告警。无需设置阈值。
             </template>
           </el-alert>
         </el-form-item>
@@ -750,13 +762,16 @@ const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string }>({
 // 可用的服务端口列表（从服务监控数据中获取）
 const availableServicePorts = ref<number[]>([])
 
+const noThresholdMetricTypes = ['host_down', 'service_port', 'gpu_unavailable']
+const isNoThresholdMetric = (metricType: string) => noThresholdMetricTypes.includes(metricType)
+
 const ruleFormRules: FormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
   metric_type: [{ required: true, message: '请选择指标类型', trigger: 'change' }],
   condition: [
     {
       validator: (rule: any, value: any, callback: any) => {
-        if (ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' && !value) {
+        if (!isNoThresholdMetric(ruleForm.metric_type || '') && !value) {
           callback(new Error('请选择条件'))
         } else {
           callback()
@@ -768,7 +783,7 @@ const ruleFormRules: FormRules = {
   threshold: [
     {
       validator: (rule: any, value: any, callback: any) => {
-        if (ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' && value === undefined) {
+        if (!isNoThresholdMetric(ruleForm.metric_type || '') && value === undefined) {
           callback(new Error('请输入阈值'))
         } else {
           callback()
@@ -1245,8 +1260,8 @@ const handleRuleSubmit = async () => {
           host_id: ruleForm.host_id || '',
           mountpoint: ruleForm.metric_type === 'disk' ? (ruleForm.mountpoint || '') : '',
           service_port: ruleForm.metric_type === 'service_port' ? (ruleForm.service_port || 0) : 0,
-          condition: ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' ? ruleForm.condition : '',
-          threshold: ruleForm.metric_type !== 'host_down' && ruleForm.metric_type !== 'service_port' ? ruleForm.threshold : 0,
+          condition: !isNoThresholdMetric(ruleForm.metric_type || '') ? ruleForm.condition : '',
+          threshold: !isNoThresholdMetric(ruleForm.metric_type || '') ? ruleForm.threshold : 0,
           duration: ruleForm.duration,
           inhibit_duration: ruleForm.inhibit_duration !== undefined && ruleForm.inhibit_duration !== null ? ruleForm.inhibit_duration : 300, // 确保 0 值也能正确传递
           severity: ruleForm.severity,
@@ -1500,7 +1515,8 @@ const getMetricTypeName = (type: string) => {
     disk: '磁盘使用率',
     network: '网络',
     host_down: '主机宕机',
-    service_port: '服务端口'
+    service_port: '服务端口',
+    gpu_unavailable: 'GPU不可用'
   }
   return map[type] || type
 }
