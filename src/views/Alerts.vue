@@ -771,6 +771,9 @@ const splitRuleHostIDs = (hostID?: string) => (hostID || '')
   .split(',')
   .map(id => id.trim())
   .filter(Boolean)
+const getRuleHostIDs = (rule: AlertRule) => (Array.isArray(rule.host_ids) && rule.host_ids.length > 0)
+  ? rule.host_ids
+  : splitRuleHostIDs(rule.host_id)
 
 const ruleFormRules: FormRules = {
   name: [{ required: true, message: '请输入规则名称', trigger: 'blur' }],
@@ -1184,7 +1187,7 @@ const handleEditRule = (rule: AlertRule) => {
     description: rule.description,
     metric_type: rule.metric_type,
     host_id: rule.host_id,
-    host_ids: splitRuleHostIDs(rule.host_id),
+    host_ids: getRuleHostIDs(rule),
     mountpoint: rule.mountpoint || '',
     service_port: rule.service_port,
     condition: rule.condition,
@@ -1265,7 +1268,8 @@ const handleRuleSubmit = async () => {
           name: ruleForm.name,
           description: ruleForm.description,
           metric_type: ruleForm.metric_type,
-          host_id: (ruleForm.host_ids || []).join(','),
+          host_id: (ruleForm.host_ids || []).length === 1 ? ruleForm.host_ids[0] : '',
+          host_ids: ruleForm.host_ids || [],
           mountpoint: ruleForm.metric_type === 'disk' ? (ruleForm.mountpoint || '') : '',
           service_port: ruleForm.metric_type === 'service_port' ? (ruleForm.service_port || 0) : 0,
           condition: !isNoThresholdMetric(ruleForm.metric_type || '') ? ruleForm.condition : '',

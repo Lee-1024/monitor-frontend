@@ -26,6 +26,7 @@ export interface AlertRule {
   severity: 'critical' | 'warning' | 'info'
   metric_type: 'cpu' | 'memory' | 'disk' | 'network' | 'host_down' | 'service_port' | 'gpu_unavailable'
   host_id: string
+  host_ids?: string[]
   mountpoint?: string  // 挂载点（仅用于 disk 指标）
   service_port?: number  // 服务端口（仅用于 service_port 指标）
   condition: 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq'
