@@ -32,11 +32,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import 'dayjs/locale/zh-cn'
-
-dayjs.extend(relativeTime)
-dayjs.locale('zh-cn')
 
 const router = useRouter()
 
@@ -46,7 +41,7 @@ defineProps<{
 }>()
 
 const formatTime = (time: string) => {
-  return dayjs(time).fromNow()
+  return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
 }
 
 const viewDetail = (hostId: string) => {

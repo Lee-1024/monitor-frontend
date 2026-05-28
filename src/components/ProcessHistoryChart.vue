@@ -21,6 +21,7 @@ const props = defineProps<{
   }>
   loading?: boolean
   metricType?: 'cpu' | 'memory' // 显示CPU还是内存
+  hostCoreCount?: number
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -42,7 +43,7 @@ const updateChart = () => {
   props.data.forEach(item => {
     const processName = item.process_name
     const time = dayjs(item.timestamp).format('HH:mm:ss')
-    const value = props.metricType === 'cpu' ? item.cpu_percent : item.memory_percent
+    const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     
     if (!processMap.has(processName)) {
       processMap.set(processName, [])
@@ -104,7 +105,11 @@ const updateChart = () => {
         params.forEach((item: any) => {
           if (item.value !== null && item.value !== undefined) {
             const value = typeof item.value === 'number' ? item.value : parseFloat(item.value) || 0
-            result += `${item.marker || '●'} ${item.seriesName}: <strong>${value.toFixed(2)}%</strong><br/>`
+            const rawPoint = getRawPoint(String(item.seriesName || ''), String(item.axisValue || ''))
+            const detail = props.metricType === 'cpu' && rawPoint
+              ? `${value.toFixed(2)}% / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${rawPoint.cpu_percent.toFixed(2)}%`
+              : `${value.toFixed(2)}%`
+            result += `${item.marker || '●'} ${item.seriesName}: <strong>${detail}</strong><br/>`
           }
         })
         return result
@@ -136,7 +141,7 @@ const updateChart = () => {
     },
     yAxis: {
       type: 'value',
-      name: props.metricType === 'cpu' ? 'CPU使用率 (%)' : '内存使用率 (%)',
+      name: props.metricType === 'cpu' ? 'CPU容量占比 (%)' : '内存使用率 (%)',
       max: 100,
       axisLabel: {
         formatter: '{value}%'
@@ -161,7 +166,24 @@ const updateChart = () => {
   chart.setOption(option, true)
 }
 
-watch(() => [props.data, props.metricType], () => {
+function getCPUCapacityPercent(cpuPercent: number) {
+  const coreCount = props.hostCoreCount || 0
+  if (coreCount <= 0) return cpuPercent || 0
+  return (cpuPercent || 0) / coreCount
+}
+
+function formatCPUCores(cpuPercent: number) {
+  return `${((cpuPercent || 0) / 100).toFixed(2)}核`
+}
+
+function getRawPoint(processName: string, axisTime: string) {
+  return props.data.find((item) => {
+    const time = dayjs(item.timestamp).format('HH:mm:ss')
+    return item.process_name === processName && time === axisTime
+  })
+}
+
+watch(() => [props.data, props.metricType, props.hostCoreCount], () => {
   updateChart()
 }, { deep: true })
 

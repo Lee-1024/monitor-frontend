@@ -31,7 +31,12 @@
           </div>
         </div>
       </template>
-      <DockerHistoryChart :data="historyData" :loading="historyLoading" :metric-type="chartMetricType" />
+      <DockerHistoryChart
+        :data="historyData"
+        :loading="historyLoading"
+        :metric-type="chartMetricType"
+        :host-core-count="hostCoreCount"
+      />
     </el-card>
 
     <el-card class="table-card">
@@ -61,9 +66,18 @@
             <el-tag :type="getStateType(row.state)">{{ row.state || 'unknown' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="CPU%" width="120">
+        <el-table-column label="CPU容量" width="150">
           <template #default="{ row }">
-            <el-progress :percentage="clampPercent(row.cpu_percent)" :color="getProgressColor(row.cpu_percent)" :format="() => `${row.cpu_percent.toFixed(1)}%`" />
+            <el-progress
+              :percentage="clampPercent(getCPUCapacityPercent(row.cpu_percent))"
+              :color="getProgressColor(getCPUCapacityPercent(row.cpu_percent))"
+              :format="() => formatCPUCapacity(row.cpu_percent)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column label="CPU用量" width="140">
+          <template #default="{ row }">
+            {{ formatCPUCores(row.cpu_percent) }} / 原始{{ row.cpu_percent.toFixed(1) }}%
           </template>
         </el-table-column>
         <el-table-column label="内存%" width="120">
@@ -118,6 +132,7 @@ import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
 import type { Agent, ApiResponse } from '@/types'
 import { getDockerContainers, getDockerHistory, type DockerContainer, type DockerHistoryPoint } from '@/api/docker'
+import { getLatestMetrics } from '@/api/metrics'
 import DockerHistoryChart from '@/components/DockerHistoryChart.vue'
 
 const loading = ref(false)
@@ -130,6 +145,7 @@ const historyData = ref<DockerHistoryPoint[]>([])
 const chartMetricType = ref<'cpu' | 'memory'>('cpu')
 const chartTimeRange = ref('1h')
 const pagination = ref({ page: 1, pageSize: 10, total: 0 })
+const hostCoreCount = ref(0)
 
 const sortedContainers = computed(() => {
   const rows = [...containers.value]
@@ -142,8 +158,9 @@ async function loadAgents() {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
     agents.value = res.data?.agents || []
-    if (!selectedHost.value && agents.value.length > 0) {
-      selectedHost.value = agents.value[0].host_id
+    const firstAgent = agents.value[0]
+    if (!selectedHost.value && firstAgent) {
+      selectedHost.value = firstAgent.host_id
     }
   } catch (error) {
     console.error('Failed to load agents:', error)
@@ -165,6 +182,21 @@ async function loadContainers() {
     ElMessage.error(`加载Docker容器失败: ${error.message}`)
   } finally {
     loading.value = false
+  }
+}
+
+async function loadHostCoreCount() {
+  if (!selectedHost.value) {
+    hostCoreCount.value = 0
+    return
+  }
+
+  try {
+    const res = await getLatestMetrics(selectedHost.value) as unknown as ApiResponse<any>
+    hostCoreCount.value = Number(res.data?.cpu?.core_count || 0)
+  } catch (error) {
+    console.error('Failed to load host CPU core count:', error)
+    hostCoreCount.value = 0
   }
 }
 
@@ -194,6 +226,7 @@ async function loadHistory() {
 
 function reloadAll() {
   pagination.value.page = 1
+  loadHostCoreCount()
   loadContainers()
   loadHistory()
 }
@@ -214,9 +247,25 @@ function clampPercent(value: number) {
 }
 
 function getProgressColor(value: number) {
-  if (value > 90) return '#f56c6c'
-  if (value > 75) return '#e6a23c'
+  if (value >= 95) return '#f56c6c'
+  if (value >= 85) return '#e6a23c'
+  if (value >= 70) return '#e6a23c'
   return '#67c23a'
+}
+
+function getCPUCapacityPercent(cpuPercent: number) {
+  if (hostCoreCount.value <= 0) return cpuPercent || 0
+  return (cpuPercent || 0) / hostCoreCount.value
+}
+
+function formatCPUCapacity(cpuPercent: number) {
+  const capacity = getCPUCapacityPercent(cpuPercent)
+  const suffix = hostCoreCount.value > 0 ? '' : '原始'
+  return `${suffix}${capacity.toFixed(1)}%`
+}
+
+function formatCPUCores(cpuPercent: number) {
+  return `${((cpuPercent || 0) / 100).toFixed(2)}核`
 }
 
 function getStateType(state: string) {
@@ -236,6 +285,7 @@ function formatBytes(bytes: number) {
 
 onMounted(() => {
   loadAgents().finally(() => {
+    loadHostCoreCount()
     loadContainers()
     loadHistory()
   })

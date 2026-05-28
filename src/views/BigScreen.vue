@@ -47,73 +47,58 @@
       </div>
     </div>
 
-    <!-- 主体内容 -->
+    <div class="kpi-strip">
+      <div class="kpi-card">
+        <span class="kpi-label">总主机</span>
+        <strong class="highlight-blue">{{ overview.total_agents }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">在线</span>
+        <strong class="highlight-green">{{ overview.online_agents }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">离线</span>
+        <strong class="highlight-red">{{ overview.offline_agents }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">平均CPU</span>
+        <strong class="cpu-color">{{ (overview.avg_cpu || 0).toFixed(1) }}%</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">平均内存</span>
+        <strong class="memory-color">{{ (overview.avg_memory || 0).toFixed(1) }}%</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">GPU设备</span>
+        <strong class="gpu-color">{{ gpuSummary.devices }}</strong>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">严重告警</span>
+        <strong class="highlight-red">{{ alertStats.critical }}</strong>
+      </div>
+    </div>
+
     <div class="content-section">
-      <!-- 左侧面板 -->
-      <div class="left-panel">
-        <!-- 主机状态 -->
-        <div class="panel-box" style="flex: 0 0 auto;">
-          <div class="panel-header">
-            <el-icon class="panel-icon"><Monitor /></el-icon>
-            <span class="panel-title">主机状态</span>
+      <main class="main-grid">
+        <section class="chart-stack">
+          <div class="panel-box chart-box">
+            <div class="panel-header">
+              <el-icon class="panel-icon"><Cpu /></el-icon>
+              <span class="panel-title">CPU使用率 Top 10</span>
+            </div>
+            <div class="chart-container" ref="cpuChartRef"></div>
           </div>
-          <div class="panel-content">
-            <div class="stat-item">
-              <div class="stat-label">总主机数</div>
-              <div class="stat-value highlight-blue">{{ overview.total_agents }}</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">在线主机</div>
-              <div class="stat-value highlight-green">{{ overview.online_agents }}</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">离线主机</div>
-              <div class="stat-value highlight-red">{{ overview.offline_agents }}</div>
-            </div>
-            <div class="stat-item">
-              <div class="stat-label">在线率</div>
-              <div class="stat-value highlight-cyan">
-                {{ overview.total_agents > 0 ? ((overview.online_agents / overview.total_agents) * 100).toFixed(1) : 0 }}%
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- 告警统计 -->
-        <div class="panel-box" style="flex: 0 0 auto;">
-          <div class="panel-header">
-            <el-icon class="panel-icon"><Warning /></el-icon>
-            <span class="panel-title">告警统计</span>
-          </div>
-          <div class="panel-content">
-            <div class="alert-stat">
-              <div class="alert-item critical">
-                <el-icon class="alert-icon"><CircleCloseFilled /></el-icon>
-                <div class="alert-info">
-                  <div class="alert-label">严重告警</div>
-                  <div class="alert-count">{{ alertStats.critical }}</div>
-                </div>
-              </div>
-              <div class="alert-item warning">
-                <el-icon class="alert-icon"><WarningFilled /></el-icon>
-                <div class="alert-info">
-                  <div class="alert-label">警告告警</div>
-                  <div class="alert-count">{{ alertStats.warning }}</div>
-                </div>
-              </div>
-              <div class="alert-item info">
-                <el-icon class="alert-icon"><InfoFilled /></el-icon>
-                <div class="alert-info">
-                  <div class="alert-label">信息告警</div>
-                  <div class="alert-count">{{ alertStats.info }}</div>
-                </div>
-              </div>
+          <div class="panel-box chart-box">
+            <div class="panel-header">
+              <el-icon class="panel-icon"><Memo /></el-icon>
+              <span class="panel-title">内存使用率 Top 10</span>
             </div>
+            <div class="chart-container" ref="memoryChartRef"></div>
           </div>
-        </div>
+        </section>
 
-        <!-- GPU资源概览 -->
-        <div class="panel-box gpu-panel">
+        <section class="panel-box gpu-panel">
           <div class="panel-header">
             <el-icon class="panel-icon"><DataLine /></el-icon>
             <span class="panel-title">GPU资源概览</span>
@@ -132,304 +117,112 @@
               <div class="gpu-summary-value">{{ gpuSummary.avgMemory.toFixed(1) }}%</div>
             </div>
           </div>
-          <div class="auto-scroll-container gpu-scroll">
-            <div class="scroll-wrapper" v-if="gpuHosts.length > 0">
-              <div class="scrolling-content panel-content gpu-host-list">
-                <div v-for="host in gpuHosts" :key="host.host_id" class="gpu-host-item">
-                  <div class="gpu-host-header">
-                    <div class="gpu-host-name">{{ host.hostname || host.host_id }}</div>
-                    <div class="gpu-host-count">{{ host.devices.length }} 张</div>
+
+          <div class="gpu-host-list" v-if="gpuHosts.length > 0">
+            <div v-for="host in gpuHosts" :key="host.host_id" class="gpu-host-item">
+              <div class="gpu-host-header">
+                <div class="gpu-host-name">{{ host.hostname || host.host_id }}</div>
+                <div class="gpu-host-count">{{ host.devices.length }} 张</div>
+              </div>
+              <div class="gpu-device-list">
+                <div v-for="device in host.devices" :key="device.uuid || `${host.host_id}-${device.index}`" class="gpu-device-item">
+                  <div class="gpu-device-title">
+                    <span>{{ device.name || `GPU ${device.index}` }}</span>
+                    <span>{{ (device.memory_used_percent || 0).toFixed(1) }}%</span>
                   </div>
-                  <div class="gpu-device-list">
-                    <div v-for="device in host.devices" :key="device.uuid || `${host.host_id}-${device.index}`" class="gpu-device-item">
-                      <div class="gpu-device-title">
-                        <span>{{ device.name || `GPU ${device.index}` }}</span>
-                        <span>{{ (device.memory_used_percent || 0).toFixed(1) }}%</span>
-                      </div>
-                      <div class="gpu-memory-row">
-                        <div class="gpu-memory-bar">
-                          <div class="gpu-memory-fill" :style="{ width: Math.min(device.memory_used_percent || 0, 100) + '%' }"></div>
-                        </div>
-                        <div class="gpu-memory-text">{{ formatBytes(device.memory_used) }} / {{ formatBytes(device.memory_total) }}</div>
-                      </div>
+                  <div class="gpu-memory-row">
+                    <div class="gpu-memory-bar">
+                      <div class="gpu-memory-fill" :style="{ width: Math.min(device.memory_used_percent || 0, 100) + '%' }"></div>
                     </div>
+                    <div class="gpu-memory-text">{{ formatBytes(device.memory_used) }} / {{ formatBytes(device.memory_total) }}</div>
                   </div>
                 </div>
               </div>
             </div>
-            <div v-else class="empty-data">暂无GPU数据</div>
           </div>
-        </div>
+          <div v-else class="empty-data">暂无GPU数据</div>
+        </section>
+      </main>
 
-        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
-          <div class="panel-header">
-            <el-icon class="panel-icon"><DataAnalysis /></el-icon>
-            <span class="panel-title">系统指标</span>
-          </div>
-          <div class="metric-switch-container" v-if="overview.avg_cpu > 0 || overview.avg_memory > 0">
-            <!-- 平均CPU -->
-            <div class="metric-switch-item" v-show="currentMetric === 'cpu'">
-              <div class="metric-item-content">
-                <div class="metric-label-row">
-                  <el-icon class="metric-icon"><Cpu /></el-icon>
-                  <span class="metric-label">平均CPU</span>
-                </div>
-                <div class="metric-value-display">
-                  <span class="value-main cpu-color">{{ (overview.avg_cpu || 0).toFixed(1) }}</span>
-                  <span class="value-suffix cpu-color">%</span>
-                </div>
-                <div class="metric-bar">
-                  <div class="bar-bg">
-                    <div class="bar-fill cpu-bar-fill" :style="{ width: Math.min(overview.avg_cpu || 0, 100) + '%' }"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 平均内存 -->
-            <div class="metric-switch-item" v-show="currentMetric === 'memory'">
-              <div class="metric-item-content">
-                <div class="metric-label-row">
-                  <el-icon class="metric-icon"><Memo /></el-icon>
-                  <span class="metric-label">平均内存</span>
-                </div>
-                <div class="metric-value-display">
-                  <span class="value-main memory-color">{{ (overview.avg_memory || 0).toFixed(1) }}</span>
-                  <span class="value-suffix memory-color">%</span>
-                </div>
-                <div class="metric-bar">
-                  <div class="bar-bg">
-                    <div class="bar-fill memory-bar-fill" :style="{ width: Math.min(overview.avg_memory || 0, 100) + '%' }"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="metric-switch-item" v-show="currentMetric === 'gpu'">
-              <div class="metric-item-content">
-                <div class="metric-label-row">
-                  <el-icon class="metric-icon"><DataLine /></el-icon>
-                  <span class="metric-label">平均GPU</span>
-                </div>
-                <div class="metric-value-display">
-                  <span class="value-main gpu-color">{{ (overview.avg_gpu || 0).toFixed(1) }}</span>
-                  <span class="value-suffix gpu-color">%</span>
-                </div>
-                <div class="metric-bar">
-                  <div class="bar-bg">
-                    <div class="bar-fill gpu-bar-fill" :style="{ width: Math.min(overview.avg_gpu || 0, 100) + '%' }"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- 指标切换 -->
-            <div class="switch-indicators">
-              <span class="indicator" :class="{ active: currentMetric === 'cpu' }" @click="currentMetric = 'cpu'"></span>
-              <span class="indicator" :class="{ active: currentMetric === 'memory' }" @click="currentMetric = 'memory'"></span>
-              <span class="indicator" :class="{ active: currentMetric === 'gpu' }" @click="currentMetric = 'gpu'"></span>
-            </div>
-          </div>
-          <div v-else class="empty-data">暂无数据</div>
-        </div>
-      </div>
-
-      <!-- 中间图表 -->
-      <div class="center-panel">
-        <!-- CPU使用率排行 -->
-        <div class="chart-box">
-          <div class="chart-header">
-            <el-icon class="chart-icon"><Cpu /></el-icon>
-            <span class="chart-title">CPU使用率 Top 10</span>
-          </div>
-          <div class="chart-container" ref="cpuChartRef"></div>
-        </div>
-
-        <!-- 内存使用率排行 -->
-        <div class="chart-box">
-          <div class="chart-header">
-            <el-icon class="chart-icon"><Memo /></el-icon>
-            <span class="chart-title">内存使用率 Top 10</span>
-          </div>
-          <div class="chart-container" ref="memoryChartRef"></div>
-        </div>
-      </div>
-
-      <!-- 右侧面板 -->
-      <div class="right-panel">
-        <!-- 实时告警 -->
-        <div class="panel-box" style="flex: 0 0 auto; min-height: 0; display: flex; flex-direction: column;">
+      <section class="bottom-grid">
+        <div class="panel-box list-panel">
           <div class="panel-header">
             <el-icon class="panel-icon"><Bell /></el-icon>
             <span class="panel-title">实时告警</span>
           </div>
-          <div class="auto-scroll-container alert-scroll">
-            <div class="scroll-wrapper" v-if="recentAlerts.length > 0">
-              <div class="scrolling-content panel-content alert-list">
-                <div
-                  v-for="alert in recentAlerts"
-                  :key="alert.id"
-                  class="alert-item-row"
-                  :class="alert.severity"
-                >
-                  <el-icon class="alert-severity-icon">
-                    <component :is="getAlertSeverityIcon(alert.severity)" />
-                  </el-icon>
-                  <div class="alert-content">
-                    <div class="alert-rule">{{ alert.rule_name }}</div>
-                    <div class="alert-host">{{ alert.hostname }}</div>
-                    <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
-                  </div>
-                </div>
-              </div>
-              <div class="scrolling-content panel-content alert-list" aria-hidden="true">
-                <div
-                  v-for="alert in recentAlerts"
-                  :key="'dup-' + alert.id"
-                  class="alert-item-row"
-                  :class="alert.severity"
-                >
-                  <el-icon class="alert-severity-icon">
-                    <component :is="getAlertSeverityIcon(alert.severity)" />
-                  </el-icon>
-                  <div class="alert-content">
-                    <div class="alert-rule">{{ alert.rule_name }}</div>
-                    <div class="alert-host">{{ alert.hostname }}</div>
-                    <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
-                  </div>
-                </div>
+          <div class="alert-list" v-if="recentAlerts.length > 0">
+            <div v-for="alert in recentAlerts" :key="alert.id" class="alert-item-row" :class="alert.severity">
+              <el-icon class="alert-severity-icon">
+                <component :is="getAlertSeverityIcon(alert.severity)" />
+              </el-icon>
+              <div class="alert-content">
+                <div class="alert-rule">{{ alert.rule_name }}</div>
+                <div class="alert-host">{{ alert.hostname }}</div>
+                <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
               </div>
             </div>
-            <div v-else class="empty-alert">暂无告警</div>
           </div>
+          <div v-else class="empty-data">暂无告警</div>
         </div>
 
-        <!-- 主机资源Top -->
-        <div class="panel-box" style="flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <div class="panel-box list-panel">
           <div class="panel-header">
             <el-icon class="panel-icon"><TrendCharts /></el-icon>
             <span class="panel-title">主机资源 Top 5</span>
           </div>
-          <div class="auto-scroll-container resource-scroll">
-            <div class="scroll-wrapper" v-if="hostResources.length > 0">
-              <div class="scrolling-content panel-content host-resource-list">
-                <div
-                  v-for="(host, index) in hostResources"
-                  :key="host.host_id"
-                  class="host-resource-item"
-                >
-                  <div class="resource-rank">{{ index + 1 }}</div>
-                  <div class="resource-info">
-                    <div class="host-name">
-                      <el-icon class="host-icon"><Monitor /></el-icon>
-                      <span class="host-text">{{ host.hostname || host.host_id }}</span>
-                    </div>
-                    <div class="resource-bars">
-                      <div class="resource-bar-item">
-                        <span class="bar-label">CPU</span>
-                        <div class="resource-bar-wrapper">
-                          <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
-                        </div>
-                        <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
-                      </div>
-                      <div class="resource-bar-item">
-                        <span class="bar-label">内存</span>
-                        <div class="resource-bar-wrapper">
-                          <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
-                        </div>
-                        <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
-                      </div>
-                    </div>
-                  </div>
+          <div class="host-resource-list" v-if="hostResources.length > 0">
+            <div v-for="(host, index) in hostResources" :key="host.host_id" class="host-resource-item">
+              <div class="resource-rank">{{ index + 1 }}</div>
+              <div class="resource-info">
+                <div class="host-name">
+                  <el-icon class="host-icon"><Monitor /></el-icon>
+                  <span class="host-text">{{ host.hostname || host.host_id }}</span>
                 </div>
-              </div>
-              <div class="scrolling-content panel-content host-resource-list" aria-hidden="true">
-                <div
-                  v-for="(host, index) in hostResources"
-                  :key="'dup-' + host.host_id"
-                  class="host-resource-item"
-                >
-                  <div class="resource-rank">{{ index + 1 }}</div>
-                  <div class="resource-info">
-                    <div class="host-name">
-                      <el-icon class="host-icon"><Monitor /></el-icon>
-                      <span class="host-text">{{ host.hostname || host.host_id }}</span>
+                <div class="resource-bars">
+                  <div class="resource-bar-item">
+                    <span class="bar-label">CPU</span>
+                    <div class="resource-bar-wrapper">
+                      <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
                     </div>
-                    <div class="resource-bars">
-                      <div class="resource-bar-item">
-                        <span class="bar-label">CPU</span>
-                        <div class="resource-bar-wrapper">
-                          <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
-                        </div>
-                        <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
-                      </div>
-                      <div class="resource-bar-item">
-                        <span class="bar-label">内存</span>
-                        <div class="resource-bar-wrapper">
-                          <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
-                        </div>
-                        <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
-                      </div>
+                    <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
+                  </div>
+                  <div class="resource-bar-item">
+                    <span class="bar-label">内存</span>
+                    <div class="resource-bar-wrapper">
+                      <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
                     </div>
+                    <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
                   </div>
                 </div>
               </div>
             </div>
-            <div v-else class="empty-data">暂无数据</div>
           </div>
+          <div v-else class="empty-data">暂无数据</div>
         </div>
-        
-        <!-- 磁盘告警Top -->
-        <div class="panel-box" style="flex: 0 0 200px; min-height: 0; overflow: hidden;">
+
+        <div class="panel-box list-panel">
           <div class="panel-header">
             <el-icon class="panel-icon"><Folder /></el-icon>
             <span class="panel-title">磁盘告警</span>
           </div>
-          <div class="auto-scroll-container disk-scroll">
-            <div class="scroll-wrapper" v-if="diskAlerts.length > 0">
-              <div class="scrolling-content panel-content disk-alert-list">
-                <div
-                  v-for="(alert, index) in diskAlerts"
-                  :key="alert.host_id + index"
-                  class="disk-alert-item"
-                >
-                  <div class="alert-rank">{{ index + 1 }}</div>
-                  <div class="alert-info">
-                    <div class="alert-host">
-                      <el-icon class="host-icon"><Monitor /></el-icon>
-                      <span>{{ alert.hostname || alert.host_id }}</span>
-                    </div>
-                    <div class="alert-mountpoint">{{ alert.mountpoint }}</div>
-                  </div>
-                  <div class="alert-usage" :class="getDiskAlertClass(alert.disk_usage)">
-                    {{ alert.disk_usage.toFixed(1) }}%
-                  </div>
+          <div class="disk-alert-list" v-if="diskAlerts.length > 0">
+            <div v-for="(alert, index) in diskAlerts" :key="alert.host_id + index" class="disk-alert-item">
+              <div class="alert-rank">{{ index + 1 }}</div>
+              <div class="alert-info">
+                <div class="alert-host">
+                  <el-icon class="host-icon"><Monitor /></el-icon>
+                  <span>{{ alert.hostname || alert.host_id }}</span>
                 </div>
+                <div class="alert-mountpoint">{{ alert.mountpoint }}</div>
               </div>
-              <div class="scrolling-content panel-content disk-alert-list" aria-hidden="true">
-                <div
-                  v-for="(alert, index) in diskAlerts"
-                  :key="'dup-' + alert.host_id + index"
-                  class="disk-alert-item"
-                >
-                  <div class="alert-rank">{{ index + 1 }}</div>
-                  <div class="alert-info">
-                    <div class="alert-host">
-                      <el-icon class="host-icon"><Monitor /></el-icon>
-                      <span>{{ alert.hostname || alert.host_id }}</span>
-                    </div>
-                    <div class="alert-mountpoint">{{ alert.mountpoint }}</div>
-                  </div>
-                  <div class="alert-usage" :class="getDiskAlertClass(alert.disk_usage)">
-                    {{ alert.disk_usage.toFixed(1) }}%
-                  </div>
-                </div>
+              <div class="alert-usage" :class="getDiskAlertClass(alert.disk_usage)">
+                {{ alert.disk_usage.toFixed(1) }}%
               </div>
             </div>
-            <div v-else class="empty-data">暂无数据</div>
           </div>
+          <div v-else class="empty-data">暂无数据</div>
         </div>
-      </div>
+      </section>
     </div>
 
     <!-- 底部数据流 -->
@@ -452,7 +245,6 @@ import {
   CircleCloseFilled,
   Close,
   Cpu,
-  DataAnalysis,
   DataLine,
   Folder,
   FullScreen,
@@ -460,7 +252,6 @@ import {
   Memo,
   Monitor,
   TrendCharts,
-  Warning,
   WarningFilled
 } from '@element-plus/icons-vue'
 import { getOverview, getTopMetrics, getLatestMetrics } from '@/api/metrics'
@@ -503,9 +294,7 @@ const bigScreenContainer = ref<HTMLElement>()
 let cpuChart: echarts.ECharts | null = null
 let memoryChart: echarts.ECharts | null = null
 let refreshTimer: any = null
-let metricSwitchTimer: any = null
 const isFullscreen = ref(false)
-const currentMetric = ref<'cpu' | 'memory' | 'gpu'>('cpu')
 
 const gpuSummary = computed(() => {
   const devices = gpuHosts.value.flatMap((host: any) => host.devices || [])
@@ -968,18 +757,11 @@ onMounted(async () => {
   // 更新时间
   setInterval(updateTime, 1000)
   
-  // 每3秒轮播系统指标
-  metricSwitchTimer = setInterval(() => {
-    currentMetric.value = currentMetric.value === 'cpu' ? 'memory' : currentMetric.value === 'memory' ? 'gpu' : 'cpu'
-  }, 3000)
 })
 
 onUnmounted(() => {
   if (refreshTimer) {
     clearInterval(refreshTimer)
-  }
-  if (metricSwitchTimer) {
-    clearInterval(metricSwitchTimer)
   }
   if (cpuChart) {
     cpuChart.dispose()
@@ -1238,611 +1020,133 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* 主体布局 */
+.kpi-strip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+  padding: 14px 24px 0;
+}
+
+.kpi-card,
+.panel-box {
+  background: rgba(0, 212, 255, 0.06);
+  border: 1px solid rgba(0, 212, 255, 0.28);
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.08);
+}
+
+.kpi-card {
+  min-width: 0;
+  padding: 12px 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.kpi-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.62);
+  white-space: nowrap;
+}
+
+.kpi-card strong {
+  font-size: 24px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 .content-section {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 320px 1fr 360px;
-  gap: 20px;
-  padding: 20px;
-  height: calc(100vh - 170px);
+  grid-template-rows: minmax(0, 1fr) 250px;
+  gap: 14px;
+  height: calc(100vh - 218px);
+  padding: 14px 24px 64px;
   overflow: hidden;
 }
 
-/* 左侧面板 */
-.left-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  height: 100%;
-  overflow-y: auto;
+.main-grid {
+  display: grid;
+  grid-template-columns: minmax(560px, 1fr) minmax(360px, 42%);
+  gap: 14px;
+  min-height: 0;
 }
 
-.left-panel::-webkit-scrollbar {
-  width: 4px;
+.chart-stack {
+  display: grid;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  min-height: 0;
 }
 
-.left-panel::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
-  border-radius: 2px;
+.bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr 1fr;
+  gap: 14px;
+  min-height: 0;
 }
 
-/* 中间面板 */
-.center-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  height: 100%;
-  overflow: hidden;
-}
-
-/* 右侧面板 */
-.right-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  height: 100%;
-  overflow-y: auto;
-  padding-right: 5px;
-}
-
-.right-panel::-webkit-scrollbar {
-  width: 4px;
-}
-
-.right-panel::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
-  border-radius: 2px;
-}
-
-.right-panel::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
-}
-
-/* 自动滚动容器 */
-.auto-scroll-container {
-  flex: 1;
-  overflow-y: hidden;
-  position: relative;
-}
-
-.auto-scroll-container:hover .scrolling-content {
-  animation-play-state: paused;
-}
-
-.auto-scroll-container:hover {
-  overflow-y: auto;
-}
-
-/* 滚动内容 */
-.scroll-wrapper {
-  display: flex;
-  flex-direction: column;
-  animation: scroll-down 20s linear infinite;
-}
-
-.scroll-wrapper:hover {
-  animation-play-state: paused;
-}
-
-/* 告警滚动区域 */
-.alert-scroll {
-  max-height: 180px;
-}
-
-.alert-scroll .panel-content.alert-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.alert-scroll .scrolling-content {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* 主机资源滚动区域 */
-.resource-scroll {
-  max-height: 300px;
-}
-
-.resource-scroll .panel-content.host-resource-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.resource-scroll .scrolling-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-/* 磁盘告警滚动区域 */
-.disk-scroll {
-  max-height: 180px;
-}
-
-.disk-scroll .panel-content.disk-alert-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.disk-scroll .scrolling-content {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-/* 滚动动画 */
-@keyframes scroll-down {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(-50%);
-  }
-}
-
-/* 告警滚动动画 */
-.alert-scroll .scroll-wrapper {
-  animation: scroll-down 15s linear infinite;
-}
-
-.alert-scroll:hover .scroll-wrapper {
-  animation-play-state: paused;
-}
-
-/* 主机资源滚动动画 */
-.resource-scroll .scroll-wrapper {
-  animation: scroll-down 25s linear infinite;
-}
-
-.resource-scroll:hover .scroll-wrapper {
-  animation-play-state: paused;
-}
-
-.gpu-scroll {
-  max-height: 260px;
-}
-
-.gpu-scroll .scroll-wrapper {
-  animation: scroll-down 22s linear infinite;
-}
-
-.gpu-scroll:hover .scroll-wrapper {
-  animation-play-state: paused;
-}
-
-/* 磁盘告警滚动动画 */
-.disk-scroll .scroll-wrapper {
-  animation: scroll-down 12s linear infinite;
-}
-
-.disk-scroll:hover .scroll-wrapper {
-  animation-play-state: paused;
-}
-
-/* 指标切换容器 */
-.metric-switch-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 120px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.metric-switch-item {
-  width: 100%;
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-.metric-item-content {
-  padding: 15px;
-  background: rgba(0, 212, 255, 0.05);
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  border-radius: 8px;
-  transition: all 0.3s ease;
-}
-
-.metric-item-content:hover {
-  background: rgba(0, 212, 255, 0.08);
-  border-color: rgba(0, 212, 255, 0.4);
-}
-
-.metric-label-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.metric-icon {
-  font-size: 16px;
-  color: #00d4ff;
-  flex-shrink: 0;
-}
-
-.metric-label {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.metric-value-display {
-  display: flex;
-  align-items: baseline;
-  margin-bottom: 10px;
-}
-
-.value-main {
-  font-size: 32px;
-  font-weight: bold;
-  line-height: 1;
-}
-
-.value-suffix {
-  font-size: 18px;
-  margin-left: 2px;
-  opacity: 0.7;
-}
-
-.cpu-color {
-  color: #00d4ff;
-  text-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
-}
-
-.memory-color {
-  color: #00ff88;
-  text-shadow: 0 0 15px rgba(0, 255, 136, 0.5);
-}
-
-.gpu-color {
-  color: #ffa502;
-  text-shadow: 0 0 15px rgba(255, 165, 2, 0.5);
-}
-
-.metric-bar {
-  width: 100%;
-}
-
-.bar-bg {
-  width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.5s ease;
-}
-
-.cpu-bar-fill {
-  background: linear-gradient(90deg, #00d4ff, #0099ff);
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
-}
-
-.memory-bar-fill {
-  background: linear-gradient(90deg, #00ff88, #00cc6a);
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.5);
-}
-
-.gpu-bar-fill {
-  background: linear-gradient(90deg, #ffa502, #ff6b35);
-  box-shadow: 0 0 8px rgba(255, 165, 2, 0.5);
-}
-
-/* 切换指示器 */
-.switch-indicators {
-  position: absolute;
-  bottom: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-}
-
-.indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.3);
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.indicator:hover {
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.indicator.active {
-  background: #00d4ff;
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
-}
-
-/* 淡入动画 */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* 渐隐遮罩 */
-.auto-scroll-container::before,
-.auto-scroll-container::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 30px;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.auto-scroll-container::before {
-  top: 0;
-  background: linear-gradient(to bottom, rgba(10, 27, 50, 0.9), transparent);
-}
-
-.auto-scroll-container::after {
-  bottom: 0;
-  background: linear-gradient(to top, rgba(10, 27, 50, 0.9), transparent);
-}
-
-/* 隐藏滚动条 */
-.auto-scroll-container::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.auto-scroll-container::-webkit-scrollbar-thumb {
-  width: 0;
-  height: 0;
-}
-
-.auto-scroll-container::-webkit-scrollbar-track {
-  width: 0;
-  height: 0;
-}
-
-/* 悬停显示滚动条 */
-.auto-scroll-container:hover::-webkit-scrollbar {
-  width: 4px;
-}
-
-.auto-scroll-container:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
-  border-radius: 2px;
-}
-
-/* 面板 */
 .panel-box {
-  background: rgba(0, 212, 255, 0.05);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  border-radius: 8px;
-  padding: 15px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
-  transition: all 0.3s;
-  flex-shrink: 0;
-}
-
-.panel-box:hover {
-  border-color: rgba(0, 212, 255, 0.6);
-  box-shadow: 0 4px 30px rgba(0, 212, 255, 0.2);
+  min-width: 0;
+  min-height: 0;
+  padding: 13px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-header {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
+  gap: 9px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+  flex-shrink: 0;
 }
 
 .panel-icon {
-  font-size: 20px;
+  font-size: 19px;
   color: #00d4ff;
   filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.5));
   flex-shrink: 0;
 }
 
 .panel-title {
-  font-size: 16px;
-  font-weight: bold;
+  font-size: 15px;
+  font-weight: 700;
   color: #00d4ff;
 }
 
-.panel-content {
-  color: #e0e0e0;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
-/* 统计项 */
-.panel-content {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  flex: 1;
-  min-height: 0;
-}
-
-.stat-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.1);
-  flex-shrink: 0;
-}
-
-.stat-item:last-child {
-  border-bottom: none;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-}
-
-.stat-value {
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.highlight-blue { color: #00d4ff; text-shadow: 0 0 10px rgba(0, 212, 255, 0.5); }
-.highlight-green { color: #00ff88; text-shadow: 0 0 10px rgba(0, 255, 136, 0.5); }
-.highlight-red { color: #ff4757; text-shadow: 0 0 10px rgba(255, 71, 87, 0.5); }
-.highlight-cyan { color: #00ffff; text-shadow: 0 0 10px rgba(0, 255, 255, 0.5); }
-
-/* 告警统计 */
-.alert-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  flex: 1;
-  justify-content: space-around;
-}
-
-.alert-item {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  padding: 12px;
-  border-radius: 6px;
-  background: rgba(0, 212, 255, 0.05);
-}
-
-.alert-item.critical { border-left: 3px solid #ff4757; }
-.alert-item.warning { border-left: 3px solid #ffa502; }
-.alert-item.info { border-left: 3px solid #00d4ff; }
-
-.alert-icon {
-  font-size: 24px;
-  flex-shrink: 0;
-}
-
-.alert-item.critical .alert-icon { color: #ff4757; }
-.alert-item.warning .alert-icon { color: #ffa502; }
-.alert-item.info .alert-icon { color: #00d4ff; }
-
-.alert-info {
-  flex: 1;
-}
-
-.alert-label {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 5px;
-}
-
-.alert-count {
-  font-size: 28px;
-  font-weight: bold;
-}
-
-.alert-item.critical .alert-count { color: #ff4757; }
-.alert-item.warning .alert-count { color: #ffa502; }
-.alert-item.info .alert-count { color: #00d4ff; }
-
-/* 指标项 */
-.metric-item {
-  flex-shrink: 0;
-  width: 100%;
-}
-
-.metric-label {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 8px;
-}
-
-.metric-progress {
-  position: relative;
-  height: 30px;
-  background: rgba(0, 212, 255, 0.1);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-bar {
-  height: 100%;
-  background: linear-gradient(90deg, #00d4ff, #0099ff);
-  border-radius: 4px;
-  transition: width 0.5s;
-  box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
-}
-
-.progress-bar.memory {
-  background: linear-gradient(90deg, #00ff88, #00cc6a);
-  box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
-}
-
-.progress-text {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 14px;
-  font-weight: bold;
+.highlight-blue,
+.cpu-color {
   color: #00d4ff;
+  text-shadow: 0 0 12px rgba(0, 212, 255, 0.45);
 }
 
-/* 图表区域 */
+.highlight-green,
+.memory-color {
+  color: #00ff88;
+  text-shadow: 0 0 12px rgba(0, 255, 136, 0.42);
+}
+
+.highlight-red {
+  color: #ff4757;
+  text-shadow: 0 0 12px rgba(255, 71, 87, 0.42);
+}
+
+.gpu-color {
+  color: #ffa502;
+  text-shadow: 0 0 12px rgba(255, 165, 2, 0.42);
+}
+
 .chart-box {
-  background: rgba(0, 212, 255, 0.05);
-  border: 1px solid rgba(0, 212, 255, 0.3);
-  border-radius: 8px;
-  padding: 15px;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.1);
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.chart-box:last-child {
-  margin-bottom: 0;
-}
-
-.chart-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.2);
-  flex-shrink: 0;
-}
-
-.chart-icon {
-  font-size: 20px;
-  color: #00d4ff;
-  flex-shrink: 0;
-}
-
-.chart-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #00d4ff;
 }
 
 .chart-container {
@@ -1851,289 +1155,89 @@ onUnmounted(() => {
   min-height: 0;
 }
 
-/* 告警列表 */
-.alert-list {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.alert-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.alert-list::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
-  border-radius: 2px;
-}
-
-.empty-alert {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  padding: 20px;
-}
-
-.alert-item-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 12px;
-  margin-bottom: 10px;
-  border-radius: 6px;
-  background: rgba(0, 212, 255, 0.05);
-  border-left: 3px solid;
-  transition: all 0.3s;
-}
-
-.alert-item-row:hover {
-  background: rgba(0, 212, 255, 0.1);
-  transform: translateX(5px);
-}
-
-.alert-item-row.critical { border-left-color: #ff4757; }
-.alert-item-row.warning { border-left-color: #ffa502; }
-.alert-item-row.info { border-left-color: #00d4ff; }
-
-.alert-severity-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.alert-item-row.critical .alert-severity-icon { color: #ff4757; }
-.alert-item-row.warning .alert-severity-icon { color: #ffa502; }
-.alert-item-row.info .alert-severity-icon { color: #00d4ff; }
-
-.alert-content {
-  flex: 1;
-}
-
-.alert-rule {
-  font-size: 14px;
-  font-weight: bold;
-  color: #fff;
-  margin-bottom: 5px;
-}
-
-.alert-host {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 3px;
-}
-
-.alert-time {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
-}
-
-/* 主机资源列表 */
-.host-resource-list {
-  flex: 1;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-.host-resource-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.host-resource-list::-webkit-scrollbar-thumb {
-  background: rgba(0, 212, 255, 0.3);
-  border-radius: 2px;
-}
-
-.empty-data {
-  text-align: center;
-  color: rgba(255, 255, 255, 0.5);
-  padding: 20px;
-}
-
-.host-resource-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px;
-  margin-bottom: 10px;
-  border-radius: 6px;
-  background: rgba(0, 212, 255, 0.05);
-  transition: all 0.3s;
-}
-
-.host-resource-item:hover {
-  background: rgba(0, 212, 255, 0.1);
-  transform: translateX(2px);
-}
-
-.resource-rank {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 212, 255, 0.2);
-  border-radius: 4px;
-  font-weight: bold;
-  color: #00d4ff;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.resource-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.host-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.host-icon {
-  font-size: 14px;
-  color: #00d4ff;
-  flex-shrink: 0;
-}
-
-.host-text {
-  font-size: 13px;
-  font-weight: bold;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.resource-bars {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.resource-bar-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bar-label {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  width: 32px;
-  flex-shrink: 0;
-}
-
-.resource-bar-wrapper {
-  flex: 1;
-  height: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.resource-bar {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.5s;
-}
-
-.cpu-bar {
-  background: linear-gradient(90deg, #00d4ff, #0099ff);
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.4);
-}
-
-.memory-bar {
-  background: linear-gradient(90deg, #00ff88, #00cc6a);
-  box-shadow: 0 0 8px rgba(0, 255, 136, 0.4);
-}
-
-.bar-value {
-  font-size: 11px;
-  font-weight: bold;
-  width: 48px;
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.cpu-value {
-  color: #00d4ff;
-}
-
-.memory-value {
-  color: #00ff88;
-}
-
 .gpu-panel {
-  flex: 0 0 330px;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  border-color: rgba(255, 165, 2, 0.28);
 }
 
 .gpu-summary-row {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  flex-shrink: 0;
 }
 
 .gpu-summary-item {
-  padding: 8px;
+  min-width: 0;
+  padding: 9px;
   border-radius: 6px;
   background: rgba(255, 165, 2, 0.08);
   border: 1px solid rgba(255, 165, 2, 0.2);
-  min-width: 0;
 }
 
 .gpu-summary-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 4px;
-  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.62);
+  margin-bottom: 5px;
 }
 
 .gpu-summary-value {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
   color: #ffa502;
-  text-shadow: 0 0 10px rgba(255, 165, 2, 0.45);
+}
+
+.gpu-host-list,
+.alert-list,
+.host-resource-list,
+.disk-alert-list {
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .gpu-host-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
+}
+
+.gpu-host-item,
+.host-resource-item,
+.alert-item-row,
+.disk-alert-item {
+  border-radius: 6px;
+  background: rgba(0, 212, 255, 0.055);
+  border: 1px solid rgba(0, 212, 255, 0.12);
 }
 
 .gpu-host-item {
   padding: 10px;
-  border-radius: 6px;
-  background: rgba(0, 212, 255, 0.05);
-  border: 1px solid rgba(0, 212, 255, 0.14);
 }
 
 .gpu-host-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
-.gpu-host-name {
+.gpu-host-name,
+.host-text {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 13px;
-  font-weight: bold;
+  font-weight: 700;
   color: #fff;
 }
 
 .gpu-host-count {
   flex-shrink: 0;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
   color: #ffa502;
   background: rgba(255, 165, 2, 0.14);
@@ -2141,9 +1245,8 @@ onUnmounted(() => {
 }
 
 .gpu-device-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  display: grid;
+  gap: 7px;
 }
 
 .gpu-device-title {
@@ -2164,23 +1267,26 @@ onUnmounted(() => {
 }
 
 .gpu-device-title span:last-child {
-  flex-shrink: 0;
   color: #ffa502;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .gpu-memory-row {
   display: grid;
-  grid-template-columns: 1fr 92px;
+  grid-template-columns: 1fr 96px;
   align-items: center;
   gap: 8px;
 }
 
-.gpu-memory-bar {
-  height: 10px;
-  border-radius: 3px;
+.gpu-memory-bar,
+.resource-bar-wrapper {
   overflow: hidden;
   background: rgba(255, 255, 255, 0.1);
+}
+
+.gpu-memory-bar {
+  height: 9px;
+  border-radius: 3px;
 }
 
 .gpu-memory-fill {
@@ -2193,87 +1299,169 @@ onUnmounted(() => {
 
 .gpu-memory-text {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.58);
   text-align: right;
   white-space: nowrap;
 }
 
-/* 磁盘告警列表 */
+.list-panel {
+  padding-bottom: 10px;
+}
+
+.alert-list,
+.host-resource-list,
 .disk-alert-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.disk-alert-list::-webkit-scrollbar {
-  width: 3px;
-}
-
-.disk-alert-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 165, 2, 0.3);
-  border-radius: 2px;
-}
-
-.disk-alert-item {
-  display: flex;
-  align-items: center;
   gap: 8px;
-  padding: 8px;
-  border-radius: 4px;
-  background: rgba(255, 165, 2, 0.05);
-  transition: all 0.3s;
-  flex-shrink: 0;
 }
 
-.disk-alert-item:hover {
-  background: rgba(255, 165, 2, 0.1);
-}
-
-.alert-rank {
-  width: 22px;
-  height: 22px;
+.alert-item-row {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 165, 2, 0.2);
-  border-radius: 4px;
-  font-weight: bold;
-  color: #ffa502;
-  font-size: 11px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  border-left: 3px solid #00d4ff;
+}
+
+.alert-item-row.critical { border-left-color: #ff4757; }
+.alert-item-row.warning { border-left-color: #ffa502; }
+.alert-item-row.info { border-left-color: #00d4ff; }
+
+.alert-severity-icon {
+  font-size: 18px;
   flex-shrink: 0;
 }
 
+.alert-item-row.critical .alert-severity-icon { color: #ff4757; }
+.alert-item-row.warning .alert-severity-icon { color: #ffa502; }
+.alert-item-row.info .alert-severity-icon { color: #00d4ff; }
+
+.alert-content,
+.resource-info,
 .alert-info {
   flex: 1;
   min-width: 0;
 }
 
-.alert-host {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-bottom: 2px;
-}
-
-.alert-host .host-icon {
-  font-size: 11px;
-  flex-shrink: 0;
-}
-
-.alert-host span:last-child {
-  font-size: 12px;
-  font-weight: bold;
+.alert-rule {
+  font-size: 13px;
+  font-weight: 700;
   color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.alert-host,
+.alert-time,
 .alert-mountpoint {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.host-resource-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+}
+
+.resource-rank,
+.alert-rank {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.resource-rank {
+  color: #00d4ff;
+  background: rgba(0, 212, 255, 0.18);
+}
+
+.alert-rank {
+  color: #ffa502;
+  background: rgba(255, 165, 2, 0.18);
+}
+
+.host-name,
+.alert-host {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.host-icon {
+  font-size: 12px;
+  color: #00d4ff;
+  flex-shrink: 0;
+}
+
+.resource-bars {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.resource-bar-item {
+  display: grid;
+  grid-template-columns: 32px 1fr 50px;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.resource-bar-wrapper {
+  height: 10px;
+  border-radius: 3px;
+}
+
+.resource-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.5s;
+}
+
+.cpu-bar {
+  background: linear-gradient(90deg, #00d4ff, #0099ff);
+}
+
+.memory-bar {
+  background: linear-gradient(90deg, #00ff88, #00cc6a);
+}
+
+.bar-value,
+.cpu-value,
+.memory-value {
+  font-size: 11px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.cpu-value { color: #00d4ff; }
+.memory-value { color: #00ff88; }
+
+.disk-alert-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px;
+  border-color: rgba(255, 165, 2, 0.14);
+}
+
+.alert-host span:last-child,
+.alert-mountpoint {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2281,7 +1469,7 @@ onUnmounted(() => {
 
 .alert-usage {
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 700;
   padding: 2px 6px;
   border-radius: 3px;
   flex-shrink: 0;
@@ -2289,20 +1477,42 @@ onUnmounted(() => {
 
 .disk-critical {
   color: #ff4757;
-  background: rgba(255, 71, 87, 0.2);
+  background: rgba(255, 71, 87, 0.18);
 }
 
 .disk-warning {
   color: #ffa502;
-  background: rgba(255, 165, 2, 0.2);
+  background: rgba(255, 165, 2, 0.18);
 }
 
 .disk-info {
   color: #00d4ff;
-  background: rgba(0, 212, 255, 0.2);
+  background: rgba(0, 212, 255, 0.18);
 }
 
-/* 页脚 */
+.empty-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+  color: rgba(255, 255, 255, 0.48);
+}
+
+.gpu-host-list::-webkit-scrollbar,
+.alert-list::-webkit-scrollbar,
+.host-resource-list::-webkit-scrollbar,
+.disk-alert-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.gpu-host-list::-webkit-scrollbar-thumb,
+.alert-list::-webkit-scrollbar-thumb,
+.host-resource-list::-webkit-scrollbar-thumb,
+.disk-alert-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.35);
+  border-radius: 2px;
+}
+
 .footer-section {
   position: absolute;
   bottom: 0;
@@ -2345,47 +1555,66 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
-/* 鍝嶅簲寮?*/
+/* 响应式 */
 @media (max-width: 1600px) {
-  .content-section {
-    grid-template-columns: 300px 1fr 340px;
+  .main-grid {
+    grid-template-columns: minmax(500px, 1fr) minmax(340px, 40%);
+  }
+
+  .kpi-card strong {
+    font-size: 21px;
   }
 }
 
 @media (max-width: 1400px) {
+  .kpi-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .content-section {
-    grid-template-columns: 280px 1fr 320px;
+    height: auto;
+    min-height: calc(100vh - 218px);
+    overflow: visible;
+  }
+
+  .main-grid,
+  .bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-stack {
+    min-height: 620px;
+  }
+
+  .gpu-panel {
+    min-height: 420px;
   }
 }
 
 @media (max-width: 1200px) {
+  .header-section {
+    padding: 16px 20px;
+  }
+
+  .main-title {
+    font-size: 28px;
+  }
+
+  .title-line {
+    display: none;
+  }
+
+  .kpi-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 12px 16px 0;
+  }
+
   .content-section {
+    padding: 12px 16px 70px;
+  }
+
+  .bottom-grid {
     grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto;
-    height: auto;
-    min-height: calc(100vh - 170px);
-  }
-  
-  .left-panel,
-  .right-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    height: auto;
-    overflow: visible;
-  }
-  
-  .right-panel .panel-box {
-    flex: none;
-    width: 100%;
-  }
-  
-  .center-panel {
-    height: auto;
-  }
-  
-  .chart-box {
-    min-height: 400px;
   }
 }
 </style>

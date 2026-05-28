@@ -28,6 +28,7 @@
         :data="processHistoryData"
         :loading="historyLoading"
         :metric-type="chartMetricType"
+        :host-core-count="hostCoreCount"
       />
     </el-card>
 
@@ -36,8 +37,7 @@
         <div class="card-header">
           <span>进程监控</span>
           <div class="header-actions">
-            <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="debouncedLoadProcesses">
-              <el-option label="全部主机" value="" />
+            <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="handleHostChange">
               <el-option
                 v-for="agent in agents"
                 :key="agent.host_id"
@@ -71,13 +71,18 @@
         <el-table-column prop="pid" label="PID" width="80" />
         <el-table-column prop="name" label="进程名" width="200" />
         <el-table-column prop="user" label="用户" width="120" />
-        <el-table-column label="CPU%" width="100">
+        <el-table-column label="CPU容量" width="130">
           <template #default="{ row }">
             <el-progress
-              :percentage="Math.min(row.cpu_percent, 100)"
-              :color="getProgressColor(row.cpu_percent)"
-              :format="() => row.cpu_percent.toFixed(1) + '%'"
+              :percentage="clampPercent(getCPUCapacityPercent(row.cpu_percent))"
+              :color="getProgressColor(getCPUCapacityPercent(row.cpu_percent))"
+              :format="() => formatCPUCapacity(row.cpu_percent)"
             />
+          </template>
+        </el-table-column>
+        <el-table-column label="CPU用量" width="140">
+          <template #default="{ row }">
+            {{ formatCPUCores(row.cpu_percent) }} / 原始{{ row.cpu_percent.toFixed(1) }}%
           </template>
         </el-table-column>
         <el-table-column label="内存%" width="100">
@@ -146,6 +151,7 @@ import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
 import type { Agent, ApiResponse } from '@/types'
+import { getLatestMetrics } from '@/api/metrics'
 import ProcessHistoryChart from '@/components/ProcessHistoryChart.vue'
 
 // 防抖工具函数
@@ -196,6 +202,7 @@ const processHistoryData = ref<Array<{
 }>>([])
 const chartMetricType = ref<'cpu' | 'memory'>('cpu')
 const chartTimeRange = ref('1h')
+const hostCoreCount = ref(0)
 
 // 用于控制错误提示频率，避免频繁提示
 let lastEmptyWarningTime = 0 // 空数据提示时间
@@ -238,8 +245,27 @@ const loadAgents = async () => {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
     agents.value = res.data?.agents || []
+    const firstAgent = agents.value[0]
+    if (!selectedHost.value && firstAgent) {
+      selectedHost.value = firstAgent.host_id
+    }
   } catch (error) {
     console.error('Failed to load agents:', error)
+  }
+}
+
+const loadHostCoreCount = async () => {
+  if (!selectedHost.value) {
+    hostCoreCount.value = 0
+    return
+  }
+
+  try {
+    const res = await getLatestMetrics(selectedHost.value) as unknown as ApiResponse<any>
+    hostCoreCount.value = Number(res.data?.cpu?.core_count || 0)
+  } catch (error) {
+    console.error('Failed to load host CPU core count:', error)
+    hostCoreCount.value = 0
   }
 }
 
@@ -314,9 +340,6 @@ const handlePageChange = (page: number) => {
   loadProcesses()
 }
 
-// 使用防抖包装loadProcesses，避免频繁触发
-const debouncedLoadProcesses = debounce(loadProcesses, 300)
-
 // 注意：debouncedLoadProcessHistory 必须在 loadProcessHistory 函数定义之后创建
 
 const formatBytes = (bytes: number) => {
@@ -327,9 +350,26 @@ const formatBytes = (bytes: number) => {
 }
 
 const getProgressColor = (value: number) => {
-  if (value > 90) return '#f56c6c'
-  if (value > 75) return '#e6a23c'
+  if (value >= 95) return '#f56c6c'
+  if (value >= 70) return '#e6a23c'
   return '#67c23a'
+}
+
+const clampPercent = (value: number) => Math.max(0, Math.min(value || 0, 100))
+
+const getCPUCapacityPercent = (cpuPercent: number) => {
+  if (hostCoreCount.value <= 0) return cpuPercent || 0
+  return (cpuPercent || 0) / hostCoreCount.value
+}
+
+const formatCPUCapacity = (cpuPercent: number) => {
+  const capacity = getCPUCapacityPercent(cpuPercent)
+  const suffix = hostCoreCount.value > 0 ? '' : '原始'
+  return `${suffix}${capacity.toFixed(1)}%`
+}
+
+const formatCPUCores = (cpuPercent: number) => {
+  return `${((cpuPercent || 0) / 100).toFixed(2)}核`
 }
 
 const getStatusType = (status: string) => {
@@ -439,8 +479,16 @@ const loadProcessHistory = async () => {
 // 使用防抖包装loadProcessHistory，避免频繁触发（必须在loadProcessHistory定义之后）
 const debouncedLoadProcessHistory = debounce(loadProcessHistory, 300)
 
-onMounted(() => {
-  loadAgents()
+const handleHostChange = async () => {
+  pagination.value.page = 1
+  await loadHostCoreCount()
+  loadProcesses()
+  loadProcessHistory()
+}
+
+onMounted(async () => {
+  await loadAgents()
+  await loadHostCoreCount()
   loadProcesses()
   // 加载历史数据（基于历史数据中的top进程）
   loadProcessHistory()

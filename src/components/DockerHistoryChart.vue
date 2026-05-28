@@ -14,6 +14,7 @@ const props = defineProps<{
   data: DockerHistoryPoint[]
   loading?: boolean
   metricType: 'cpu' | 'memory'
+  hostCoreCount?: number
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -34,7 +35,7 @@ function updateChart() {
   props.data.forEach((item) => {
     const name = item.container_name || 'unknown'
     const time = dayjs(item.timestamp).format('HH:mm:ss')
-    const value = props.metricType === 'cpu' ? item.cpu_percent : item.memory_percent
+    const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     if (!containerMap.has(name)) {
       containerMap.set(name, [])
     }
@@ -52,6 +53,7 @@ function updateChart() {
     data: times.map((time) => items.find((item) => item.time === time)?.value ?? null),
     connectNulls: false
   }))
+  const yAxisMax = getYAxisMax()
 
   chart.setOption({
     tooltip: {
@@ -66,7 +68,11 @@ function updateChart() {
           if (item.value !== null && item.value !== undefined) {
             const name = escapeHtml(String(item.seriesName || 'unknown'))
             const shortName = escapeHtml(truncateContainerName(String(item.seriesName || 'unknown')))
-            html += `<div class="docker-tooltip-row">${item.marker}<span class="docker-tooltip-name" title="${name}">${shortName}</span><strong>${Number(item.value).toFixed(2)}%</strong></div>`
+            const rawPoint = getRawPoint(String(item.seriesName || 'unknown'), String(item.axisValue || ''))
+            const detail = props.metricType === 'cpu' && rawPoint
+              ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${rawPoint.cpu_percent.toFixed(2)}%`
+              : `${Number(item.value).toFixed(2)}%`
+            html += `<div class="docker-tooltip-row">${item.marker}<span class="docker-tooltip-name" title="${name}">${shortName}</span><strong>${detail}</strong></div>`
           }
         })
         return html
@@ -91,8 +97,8 @@ function updateChart() {
     },
     yAxis: {
       type: 'value',
-      name: props.metricType === 'cpu' ? 'CPU使用率(%)' : '内存使用率(%)',
-      max: 100,
+      name: props.metricType === 'cpu' ? 'CPU容量占比(%)' : '内存使用率(%)',
+      max: yAxisMax,
       axisLabel: { formatter: '{value}%' }
     },
     dataZoom: [
@@ -101,6 +107,32 @@ function updateChart() {
     ],
     series
   }, true)
+}
+
+function getYAxisMax() {
+  return 100
+}
+
+function getCPUCapacityPercent(cpuPercent: number) {
+  const coreCount = props.hostCoreCount || 0
+  if (coreCount <= 0) return cpuPercent || 0
+  return (cpuPercent || 0) / coreCount
+}
+
+function formatCPUCapacity(cpuPercent: number) {
+  return `${getCPUCapacityPercent(cpuPercent).toFixed(2)}%`
+}
+
+function formatCPUCores(cpuPercent: number) {
+  return `${((cpuPercent || 0) / 100).toFixed(2)}核`
+}
+
+function getRawPoint(containerName: string, axisTime: string) {
+  return props.data.find((item) => {
+    const name = item.container_name || 'unknown'
+    const time = dayjs(item.timestamp).format('HH:mm:ss')
+    return name === containerName && time === axisTime
+  })
 }
 
 function truncateContainerName(name: string) {
@@ -117,7 +149,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;')
 }
 
-watch(() => [props.data, props.metricType], updateChart, { deep: true })
+watch(() => [props.data, props.metricType, props.hostCoreCount], updateChart, { deep: true })
 
 onMounted(() => {
   initChart()

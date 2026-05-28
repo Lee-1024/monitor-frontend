@@ -12,10 +12,20 @@
         <template #header>
           <div class="card-header">
             <span>GPU 使用率 Top</span>
-            <el-button type="primary" @click="loadData">
-              <el-icon><Refresh /></el-icon>
-              刷新
-            </el-button>
+            <div class="header-actions">
+              <el-select v-model="selectedHost" clearable placeholder="全部主机" class="host-select" @change="loadData">
+                <el-option
+                  v-for="agent in agents"
+                  :key="agent.host_id"
+                  :label="`${agent.hostname || agent.host_id} (${agent.host_id})`"
+                  :value="agent.host_id"
+                />
+              </el-select>
+              <el-button type="primary" @click="loadData">
+                <el-icon><Refresh /></el-icon>
+                刷新
+              </el-button>
+            </div>
           </div>
         </template>
         <div ref="utilChartRef" class="chart"></div>
@@ -34,14 +44,7 @@
       <template #header>
         <div class="card-header">
           <span>GPU 设备列表</span>
-          <el-select v-model="selectedHost" clearable placeholder="全部主机" class="host-select" @change="loadData">
-            <el-option
-              v-for="agent in agents"
-              :key="agent.host_id"
-              :label="`${agent.hostname || agent.host_id} (${agent.host_id})`"
-              :value="agent.host_id"
-            />
-          </el-select>
+          <span class="filter-hint">{{ selectedHost ? '已按主机过滤' : '全部主机' }}</span>
         </div>
       </template>
       <el-table v-loading="loading" :data="filteredDevices" stripe empty-text="暂无 GPU 数据">
@@ -83,7 +86,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
-import { getLatestMetrics, getOverview, getTopMetrics } from '@/api/metrics'
+import { getLatestMetrics, getOverview } from '@/api/metrics'
 import type { Agent, ApiResponse, GPUDeviceMetrics, Overview } from '@/types'
 
 type GPUDeviceRow = GPUDeviceMetrics & {
@@ -112,13 +115,16 @@ const summaryCards = computed(() => {
   const avgMem = visible.length
     ? visible.reduce((sum, device) => sum + (device.memory_used_percent || 0), 0) / visible.length
     : 0
+  const avgUtil = visible.length
+    ? visible.reduce((sum, device) => sum + (device.utilization_percent || 0), 0) / visible.length
+    : overview.value?.avg_gpu || 0
   const maxTemp = visible.reduce((max, device) => Math.max(max, device.temperature || 0), 0)
   const hostCount = new Set(visible.map((device) => device.host_id)).size
 
   return [
     { label: 'GPU 主机', value: String(hostCount) },
     { label: 'GPU 设备', value: String(visible.length || overview.value?.gpu_devices || 0) },
-    { label: '平均使用率', value: `${formatNumber(overview.value?.avg_gpu || 0)}%` },
+    { label: '平均使用率', value: `${formatNumber(avgUtil)}%` },
     { label: '平均显存', value: `${formatNumber(avgMem)}%` },
     { label: '最高温度', value: `${formatNumber(maxTemp)}°C` }
   ]
@@ -164,29 +170,58 @@ async function loadData() {
 
 async function renderCharts() {
   await nextTick()
-  const utilRes = await getTopMetrics({ type: 'gpu', limit: 10, order: 'desc' }) as unknown as ApiResponse<any[]>
-  const utilTop = utilRes.data || []
-  renderBar(utilChart, utilTop, '#409eff')
+  const utilTop = [...filteredDevices.value]
+    .sort((a, b) => (b.utilization_percent || 0) - (a.utilization_percent || 0))
+    .slice(0, 10)
+    .map((device) => ({
+      host_id: device.host_id,
+      hostname: device.hostname,
+      device: device.name,
+      vendor: device.vendor,
+      value: device.utilization_percent
+    }))
+  renderBar(utilChart, utilTop, '#409eff', 'GPU 使用率')
 
   const memoryTop = [...filteredDevices.value]
     .sort((a, b) => (b.memory_used_percent || 0) - (a.memory_used_percent || 0))
     .slice(0, 10)
-    .map((device) => ({ hostname: device.hostname, device: device.name, value: device.memory_used_percent }))
-  renderBar(memoryChart, memoryTop, '#67c23a')
+    .map((device) => ({
+      host_id: device.host_id,
+      hostname: device.hostname,
+      device: device.name,
+      vendor: device.vendor,
+      value: device.memory_used_percent
+    }))
+  renderBar(memoryChart, memoryTop, '#67c23a', '显存使用率')
 }
 
-function renderBar(chart: echarts.ECharts | null, data: any[], color: string) {
+function renderBar(chart: echarts.ECharts | null, data: any[], color: string, metricName: string) {
   if (!chart) return
+  const displayData = [...data].reverse()
   chart.setOption({
+    tooltip: {
+      trigger: 'item',
+      formatter: (params: any) => {
+        const item = displayData[params.dataIndex] || {}
+        const rows = [
+          `<div class="gpu-tooltip-title">${item.device || 'GPU'}</div>`,
+          `<div>主机：${item.hostname || '-'}</div>`,
+          `<div>Host ID：${item.host_id || '-'}</div>`,
+          `<div>厂商：${item.vendor || '-'}</div>`,
+          `<div>${metricName}：${formatNumber(Number(item.value || 0))}%</div>`
+        ]
+        return rows.join('')
+      }
+    },
     grid: { left: 80, right: 32, top: 20, bottom: 28 },
     xAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
     yAxis: {
       type: 'category',
-      data: data.map((item) => item.device || item.hostname || item.host_id || 'GPU').reverse()
+      data: displayData.map((item) => item.device || item.hostname || item.host_id || 'GPU')
     },
     series: [{
       type: 'bar',
-      data: data.map((item) => Number(item.value || 0).toFixed(1)).reverse(),
+      data: displayData.map((item) => Number(item.value || 0).toFixed(1)),
       itemStyle: { color },
       label: { show: true, position: 'right', formatter: '{c}%' }
     }]
@@ -281,8 +316,19 @@ function resizeCharts() {
   gap: 12px;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .host-select {
   width: 260px;
+}
+
+.filter-hint {
+  color: #909399;
+  font-size: 13px;
 }
 
 @media (max-width: 1200px) {

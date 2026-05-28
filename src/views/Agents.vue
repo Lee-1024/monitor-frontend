@@ -118,7 +118,7 @@
         </el-table-column>
         <el-table-column label="最后上报" width="180">
           <template #default="{ row }">
-            {{ dayjs(row.last_seen).fromNow() }}
+            {{ dayjs(row.last_seen).format('YYYY-MM-DD HH:mm:ss') }}
           </template>
         </el-table-column>
         <el-table-column label="操作" fixed="right" width="200">
@@ -158,11 +158,6 @@ import { getAgents, deleteAgent } from '@/api/agent'
 import { getLatestMetrics } from '@/api/metrics'
 import type { Agent, ApiResponse, PaginatedResponse, LatestMetrics } from '@/types'
 import dayjs from 'dayjs'
-import relativeTime from 'dayjs/plugin/relativeTime'
-import 'dayjs/locale/zh-cn'
-
-dayjs.extend(relativeTime)
-dayjs.locale('zh-cn')
 
 const router = useRouter()
 const loading = ref(false)
