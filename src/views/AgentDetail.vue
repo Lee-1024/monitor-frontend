@@ -376,6 +376,7 @@ const metricsLoading = ref(false)
 const historyLoading = ref(false)
 const agent = ref<Partial<Agent>>({})
 const latestMetrics = ref<any>({})
+const latestNetworkSamples = ref<Array<{ timestamp: string; values: Record<string, number> }>>([])
 const cpuHistory = ref<MetricPoint[]>([])
 const memoryHistory = ref<MetricPoint[]>([])
 const networkHistory = ref<MetricPoint[]>([])
@@ -403,6 +404,7 @@ const fetchLatestMetrics = async () => {
     metricsLoading.value = true
     const res = await getLatestMetrics(hostId) as unknown as ApiResponse<any>
     latestMetrics.value = res.data || {}
+    updateLatestNetworkSamples(latestMetrics.value)
     
     // 处理磁盘分区数据
     updateDiskPartitions()
@@ -522,21 +524,22 @@ const formatBytes = (bytes: number) => {
 
 const formatBytesPerSecond = (bytes: number) => `${formatBytes(bytes)}/s`
 
-const networkRealtime = computed(() => {
-  if (networkHistory.value.length < 2) {
-    return {
-      sent: '0 B/s',
-      recv: '0 B/s'
-    }
+const updateLatestNetworkSamples = (metrics: any) => {
+  const network = metrics?.network
+  if (!network || typeof network !== 'object') return
+
+  const timestamp = metrics.timestamp || new Date().toISOString()
+  const values = {
+    bytes_sent: Number(network.bytes_sent || 0),
+    bytes_recv: Number(network.bytes_recv || 0)
   }
 
-  const prevPoint = networkHistory.value[networkHistory.value.length - 2]
-  const currPoint = networkHistory.value[networkHistory.value.length - 1]
+  latestNetworkSamples.value = [...latestNetworkSamples.value, { timestamp, values }].slice(-2)
+}
+
+const calculateNetworkRate = (prevPoint: any, currPoint: any) => {
   if (!prevPoint || !currPoint) {
-    return {
-      sent: '0 B/s',
-      recv: '0 B/s'
-    }
+    return null
   }
 
   const seconds = Math.max(dayjs(currPoint.timestamp).diff(dayjs(prevPoint.timestamp), 'second'), 1)
@@ -549,6 +552,32 @@ const networkRealtime = computed(() => {
     sent: formatBytesPerSecond(sent),
     recv: formatBytesPerSecond(recv)
   }
+}
+
+const networkRealtime = computed(() => {
+  if (latestNetworkSamples.value.length >= 2) {
+    const latestRate = calculateNetworkRate(latestNetworkSamples.value[0], latestNetworkSamples.value[1])
+    if (latestRate) return latestRate
+  }
+
+  if (networkHistory.value.length < 2) {
+    return {
+      sent: '0 B/s',
+      recv: '0 B/s'
+    }
+  }
+
+  const historyRate = calculateNetworkRate(
+    networkHistory.value[networkHistory.value.length - 2],
+    networkHistory.value[networkHistory.value.length - 1]
+  )
+  if (!historyRate) {
+    return {
+      sent: '0 B/s',
+      recv: '0 B/s'
+    }
+  }
+  return historyRate
 })
 
 // 获取CPU使用率颜色
