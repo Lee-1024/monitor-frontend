@@ -10,6 +10,14 @@
               <el-radio-button label="cpu">CPU使用率</el-radio-button>
               <el-radio-button label="memory">内存使用率</el-radio-button>
             </el-radio-group>
+            <el-select v-model="historyHost" placeholder="选择趋势主机" style="width: 220px; margin-left: 10px" @change="handleHistoryHostChange">
+              <el-option
+                v-for="agent in agents"
+                :key="agent.host_id"
+                :label="`${agent.hostname || agent.host_id} (${agent.host_id})`"
+                :value="agent.host_id"
+              />
+            </el-select>
             <el-select v-model="chartTimeRange" style="width: 150px; margin-left: 10px" @change="debouncedLoadProcessHistory">
               <el-option label="最近1小时" value="1h" />
               <el-option label="最近3小时" value="3h" />
@@ -28,7 +36,7 @@
         :data="processHistoryData"
         :loading="historyLoading"
         :metric-type="chartMetricType"
-        :host-core-count="hostCoreCount"
+        :host-core-count="historyHostCoreCount"
       />
     </el-card>
 
@@ -37,7 +45,7 @@
         <div class="card-header">
           <span>进程监控</span>
           <div class="header-actions">
-            <el-select v-model="selectedHost" placeholder="选择主机" style="width: 200px" @change="handleHostChange">
+            <el-select v-model="realtimeHost" placeholder="选择主机" style="width: 200px" @change="handleRealtimeHostChange">
               <el-option
                 v-for="agent in agents"
                 :key="agent.host_id"
@@ -180,7 +188,7 @@ interface ProcessInfo {
 }
 
 const loading = ref(false)
-const selectedHost = ref('')
+const realtimeHost = ref('')
 const sortBy = ref('cpu_desc') // 默认按CPU占用降序排序（高使用在前）
 const agents = ref<Agent[]>([])
 const processes = ref<ProcessInfo[]>([])
@@ -202,7 +210,9 @@ const processHistoryData = ref<Array<{
 }>>([])
 const chartMetricType = ref<'cpu' | 'memory'>('cpu')
 const chartTimeRange = ref('1h')
-const hostCoreCount = ref(0)
+const historyHost = ref('')
+const historyHostCoreCount = ref(0)
+const realtimeHostCoreCount = ref(0)
 
 // 用于控制错误提示频率，避免频繁提示
 let lastEmptyWarningTime = 0 // 空数据提示时间
@@ -246,27 +256,49 @@ const loadAgents = async () => {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
     agents.value = res.data?.agents || []
     const firstAgent = agents.value[0]
-    if (!selectedHost.value && firstAgent) {
-      selectedHost.value = firstAgent.host_id
+    if (firstAgent) {
+      if (!realtimeHost.value) {
+        realtimeHost.value = firstAgent.host_id
+      }
+      if (!historyHost.value) {
+        historyHost.value = firstAgent.host_id
+      }
     }
   } catch (error) {
     console.error('Failed to load agents:', error)
   }
 }
 
-const loadHostCoreCount = async () => {
-  if (!selectedHost.value) {
-    hostCoreCount.value = 0
-    return
+const loadHostCoreCount = async (hostId: string) => {
+  if (!hostId) {
+    return 0
   }
 
   try {
-    const res = await getLatestMetrics(selectedHost.value) as unknown as ApiResponse<any>
-    hostCoreCount.value = Number(res.data?.cpu?.core_count || 0)
+    const res = await getLatestMetrics(hostId) as unknown as ApiResponse<any>
+    return Number(res.data?.cpu?.core_count || 0)
   } catch (error) {
     console.error('Failed to load host CPU core count:', error)
-    hostCoreCount.value = 0
+    return 0
   }
+}
+
+const loadHistoryHostCoreCount = async () => {
+  if (!historyHost.value) {
+    historyHostCoreCount.value = 0
+    return
+  }
+
+  historyHostCoreCount.value = await loadHostCoreCount(historyHost.value)
+}
+
+const loadRealtimeHostCoreCount = async () => {
+  if (!realtimeHost.value) {
+    realtimeHostCoreCount.value = 0
+    return
+  }
+
+  realtimeHostCoreCount.value = await loadHostCoreCount(realtimeHost.value)
 }
 
 const loadProcesses = async () => {
@@ -281,8 +313,8 @@ const loadProcesses = async () => {
       page: pagination.value.page,
       page_size: pagination.value.pageSize
     }
-    if (selectedHost.value) {
-      params.host_id = selectedHost.value
+    if (realtimeHost.value) {
+      params.host_id = realtimeHost.value
     }
     
     console.log('Loading processes with params:', params)
@@ -358,13 +390,13 @@ const getProgressColor = (value: number) => {
 const clampPercent = (value: number) => Math.max(0, Math.min(value || 0, 100))
 
 const getCPUCapacityPercent = (cpuPercent: number) => {
-  if (hostCoreCount.value <= 0) return cpuPercent || 0
-  return (cpuPercent || 0) / hostCoreCount.value
+  if (realtimeHostCoreCount.value <= 0) return cpuPercent || 0
+  return (cpuPercent || 0) / realtimeHostCoreCount.value
 }
 
 const formatCPUCapacity = (cpuPercent: number) => {
   const capacity = getCPUCapacityPercent(cpuPercent)
-  const suffix = hostCoreCount.value > 0 ? '' : '原始'
+  const suffix = realtimeHostCoreCount.value > 0 ? '' : '原始'
   return `${suffix}${capacity.toFixed(1)}%`
 }
 
@@ -442,8 +474,8 @@ const loadProcessHistory = async () => {
       limit: 5000
     }
     
-    if (selectedHost.value) {
-      params.host_id = selectedHost.value
+    if (historyHost.value) {
+      params.host_id = historyHost.value
     }
     
     console.log('Loading top process history by', chartMetricType.value, 'for time range:', start.format('YYYY-MM-DD HH:mm:ss'), 'to', end.format('YYYY-MM-DD HH:mm:ss'))
@@ -479,16 +511,23 @@ const loadProcessHistory = async () => {
 // 使用防抖包装loadProcessHistory，避免频繁触发（必须在loadProcessHistory定义之后）
 const debouncedLoadProcessHistory = debounce(loadProcessHistory, 300)
 
-const handleHostChange = async () => {
+const handleRealtimeHostChange = async () => {
   pagination.value.page = 1
-  await loadHostCoreCount()
+  await loadRealtimeHostCoreCount()
   loadProcesses()
+}
+
+const handleHistoryHostChange = async () => {
+  await loadHistoryHostCoreCount()
   loadProcessHistory()
 }
 
 onMounted(async () => {
   await loadAgents()
-  await loadHostCoreCount()
+  await Promise.all([
+    loadRealtimeHostCoreCount(),
+    loadHistoryHostCoreCount()
+  ])
   loadProcesses()
   // 加载历史数据（基于历史数据中的top进程）
   loadProcessHistory()

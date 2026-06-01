@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
-import dayjs from 'dayjs'
+import { formatMetricTimestamp } from '@/utils/metricTimeFormat'
 
 const props = defineProps<{
   data: Array<{ timestamp: string; values: Record<string, number> }>
@@ -45,7 +45,7 @@ const initChart = () => {
 const updateChart = () => {
   if (!chart) return
   
-  const times = props.data.map(item => dayjs(item.timestamp).format('HH:mm'))
+  const times = props.data.map(item => formatMetricTimestamp(item.timestamp, props.data))
   const memUsedPercent = props.data.map(item => item.values.used_percent || 0)
   const memUsed = props.data.map(item => item.values.used || 0)
   const memTotal = props.data.map(item => item.values.total || 0)

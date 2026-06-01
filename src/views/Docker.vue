@@ -5,7 +5,7 @@
         <div class="card-header">
           <span>Docker容器趋势</span>
           <div class="header-actions">
-            <el-select v-model="selectedHost" placeholder="选择主机" class="host-select" @change="reloadAll">
+            <el-select v-model="historyHost" placeholder="选择趋势主机" class="host-select" @change="handleHistoryHostChange">
               <el-option
                 v-for="agent in agents"
                 :key="agent.host_id"
@@ -35,7 +35,7 @@
         :data="historyData"
         :loading="historyLoading"
         :metric-type="chartMetricType"
-        :host-core-count="hostCoreCount"
+        :host-core-count="historyHostCoreCount"
       />
     </el-card>
 
@@ -44,6 +44,14 @@
         <div class="card-header">
           <span>Docker容器列表</span>
           <div class="header-actions">
+            <el-select v-model="realtimeHost" placeholder="选择列表主机" class="host-select" @change="handleRealtimeHostChange">
+              <el-option
+                v-for="agent in agents"
+                :key="agent.host_id"
+                :label="`${agent.hostname || agent.host_id} (${agent.host_id})`"
+                :value="agent.host_id"
+              />
+            </el-select>
             <el-select v-model="sortBy" class="sort-select">
               <el-option label="CPU占用降序" value="cpu_desc" />
               <el-option label="内存占用降序" value="memory_desc" />
@@ -137,7 +145,8 @@ import DockerHistoryChart from '@/components/DockerHistoryChart.vue'
 
 const loading = ref(false)
 const historyLoading = ref(false)
-const selectedHost = ref('')
+const realtimeHost = ref('')
+const historyHost = ref('')
 const sortBy = ref('cpu_desc')
 const agents = ref<Agent[]>([])
 const containers = ref<DockerContainer[]>([])
@@ -145,7 +154,8 @@ const historyData = ref<DockerHistoryPoint[]>([])
 const chartMetricType = ref<'cpu' | 'memory'>('cpu')
 const chartTimeRange = ref('1h')
 const pagination = ref({ page: 1, pageSize: 10, total: 0 })
-const hostCoreCount = ref(0)
+const realtimeHostCoreCount = ref(0)
+const historyHostCoreCount = ref(0)
 
 const sortedContainers = computed(() => {
   const rows = [...containers.value]
@@ -159,8 +169,13 @@ async function loadAgents() {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
     agents.value = res.data?.agents || []
     const firstAgent = agents.value[0]
-    if (!selectedHost.value && firstAgent) {
-      selectedHost.value = firstAgent.host_id
+    if (firstAgent) {
+      if (!realtimeHost.value) {
+        realtimeHost.value = firstAgent.host_id
+      }
+      if (!historyHost.value) {
+        historyHost.value = firstAgent.host_id
+      }
     }
   } catch (error) {
     console.error('Failed to load agents:', error)
@@ -174,7 +189,7 @@ async function loadContainers() {
       page: pagination.value.page,
       page_size: pagination.value.pageSize
     }
-    if (selectedHost.value) params.host_id = selectedHost.value
+    if (realtimeHost.value) params.host_id = realtimeHost.value
     const res = await getDockerContainers(params)
     containers.value = res.data?.containers || []
     pagination.value.total = res.data?.total || 0
@@ -185,19 +200,26 @@ async function loadContainers() {
   }
 }
 
-async function loadHostCoreCount() {
-  if (!selectedHost.value) {
-    hostCoreCount.value = 0
-    return
+async function loadHostCoreCount(hostId: string) {
+  if (!hostId) {
+    return 0
   }
 
   try {
-    const res = await getLatestMetrics(selectedHost.value) as unknown as ApiResponse<any>
-    hostCoreCount.value = Number(res.data?.cpu?.core_count || 0)
+    const res = await getLatestMetrics(hostId) as unknown as ApiResponse<any>
+    return Number(res.data?.cpu?.core_count || 0)
   } catch (error) {
     console.error('Failed to load host CPU core count:', error)
-    hostCoreCount.value = 0
+    return 0
   }
+}
+
+async function loadRealtimeHostCoreCount() {
+  realtimeHostCoreCount.value = await loadHostCoreCount(realtimeHost.value)
+}
+
+async function loadHistoryHostCoreCount() {
+  historyHostCoreCount.value = await loadHostCoreCount(historyHost.value)
 }
 
 async function loadHistory() {
@@ -213,7 +235,7 @@ async function loadHistory() {
       end: end.toISOString(),
       limit: 5000
     }
-    if (selectedHost.value) params.host_id = selectedHost.value
+    if (historyHost.value) params.host_id = historyHost.value
     const res = await getDockerHistory(params)
     historyData.value = res.data || []
   } catch (error: any) {
@@ -224,10 +246,14 @@ async function loadHistory() {
   }
 }
 
-function reloadAll() {
+function handleRealtimeHostChange() {
   pagination.value.page = 1
-  loadHostCoreCount()
+  loadRealtimeHostCoreCount()
   loadContainers()
+}
+
+function handleHistoryHostChange() {
+  loadHistoryHostCoreCount()
   loadHistory()
 }
 
@@ -254,13 +280,13 @@ function getProgressColor(value: number) {
 }
 
 function getCPUCapacityPercent(cpuPercent: number) {
-  if (hostCoreCount.value <= 0) return cpuPercent || 0
-  return (cpuPercent || 0) / hostCoreCount.value
+  if (realtimeHostCoreCount.value <= 0) return cpuPercent || 0
+  return (cpuPercent || 0) / realtimeHostCoreCount.value
 }
 
 function formatCPUCapacity(cpuPercent: number) {
   const capacity = getCPUCapacityPercent(cpuPercent)
-  const suffix = hostCoreCount.value > 0 ? '' : '原始'
+  const suffix = realtimeHostCoreCount.value > 0 ? '' : '原始'
   return `${suffix}${capacity.toFixed(1)}%`
 }
 
@@ -285,7 +311,8 @@ function formatBytes(bytes: number) {
 
 onMounted(() => {
   loadAgents().finally(() => {
-    loadHostCoreCount()
+    loadRealtimeHostCoreCount()
+    loadHistoryHostCoreCount()
     loadContainers()
     loadHistory()
   })

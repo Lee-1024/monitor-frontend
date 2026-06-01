@@ -11,6 +11,7 @@
 import { ref, onMounted, watch } from 'vue'
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
+import { formatMetricTimestamp } from '@/utils/metricTimeFormat'
 
 const props = defineProps<{
   data: Array<{ timestamp: string; values: Record<string, number> }>
@@ -40,7 +41,7 @@ const initChart = () => {
 const updateChart = () => {
   if (!chart) return
 
-  const times = props.data.map(item => dayjs(item.timestamp).format('HH:mm'))
+  const times = props.data.map(item => formatMetricTimestamp(item.timestamp, props.data))
 
   // 这里使用 bytes_sent / bytes_recv 的变化量近似代表吞吐速率
   const sent: number[] = []

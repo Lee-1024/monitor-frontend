@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import * as echarts from 'echarts'
-import dayjs from 'dayjs'
+import { formatMetricTimestamp } from '@/utils/metricTimeFormat'
 
 const props = defineProps<{
   data: Array<{ timestamp: string; values: Record<string, number> }>
@@ -50,7 +50,7 @@ const initChart = () => {
 const updateChart = () => {
   if (!chart) return
 
-  const times = props.data.map(item => dayjs(item.timestamp).format('HH:mm'))
+  const times = props.data.map(item => formatMetricTimestamp(item.timestamp, props.data))
   
   // 如果提供了多个挂载点，为每个挂载点创建一条线
   if (props.mountpoints && props.mountpoints.length > 0) {
@@ -62,7 +62,7 @@ const updateChart = () => {
     
     props.mountpoints.forEach((mountpoint, index) => {
       const usedPercent = props.data.map(item => item.values[`${mountpoint}_used_percent`] || 0)
-      const color = colors[index % colors.length]
+      const color = colors[index % colors.length] || '#E6A23C'
       
       series.push({
         name: `${mountpoint} - 使用率`,
@@ -123,7 +123,8 @@ const updateChart = () => {
           const displayItems = params.slice(0, maxDisplayItems)
           displayItems.forEach((item: any) => {
             const numValue = typeof item.value === 'number' ? item.value : parseFloat(item.value) || 0
-            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
+            const seriesName = item.seriesName || ''
+            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
           })
           if (params.length > maxDisplayItems) {
             result += `<div style="margin-top: 4px; color: #909399; font-size: 11px;">...还有 ${params.length - maxDisplayItems} 个挂载点</div>`
@@ -132,7 +133,7 @@ const updateChart = () => {
         }
       },
       legend: {
-        data: series.map(s => s.name),
+        data: series.map(s => s.name || ''),
         top: 10,
         left: 'center',
         textStyle: {
@@ -276,12 +277,13 @@ const updateChart = () => {
         }
         params.forEach((item: any) => {
           const value = item.value
-          if (item.seriesName === '已用' || item.seriesName === '总计') {
+          const seriesName = item.seriesName || ''
+          if (seriesName === '已用' || seriesName === '总计') {
             const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
-            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${formatBytes(numValue)}</strong></span></div>`
+            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${seriesName}: <strong>${formatBytes(numValue)}</strong></span></div>`
           } else {
             const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
-            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${item.seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
+            result += `<div style="margin: 2px 0; line-height: 1.4;">${item.marker}<span style="margin-left: 4px;">${seriesName}: <strong>${numValue.toFixed(1)}%</strong></span></div>`
           }
         })
         return result

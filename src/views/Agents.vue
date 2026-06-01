@@ -121,10 +121,13 @@
             {{ dayjs(row.last_seen).format('YYYY-MM-DD HH:mm:ss') }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" fixed="right" width="200">
+        <el-table-column label="操作" fixed="right" width="260">
           <template #default="{ row }">
             <el-button type="primary" size="small" @click="viewDetail(row.host_id)">
               详情
+            </el-button>
+            <el-button type="success" size="small" @click="viewHistory(row.host_id)">
+              历史
             </el-button>
             <el-button type="danger" size="small" @click="handleDelete(row)">
               删除
@@ -251,6 +254,10 @@ const handleCurrentChange = () => {
 
 const viewDetail = (hostId: string) => {
   router.push(`/agents/${hostId}`)
+}
+
+const viewHistory = (hostId: string) => {
+  router.push(`/agents/${hostId}/history`)
 }
 
 const handleDelete = async (row: any) => {

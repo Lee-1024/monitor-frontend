@@ -3,10 +3,15 @@
 <!-- ============================================ -->
 <template>
   <div class="agent-detail-container">
-    <el-button @click="$router.back()" style="margin-bottom: 20px">
-      <el-icon><ArrowLeft /></el-icon>
-      返回
-    </el-button>
+    <div class="page-actions">
+      <el-button @click="$router.back()">
+        <el-icon><ArrowLeft /></el-icon>
+        返回
+      </el-button>
+      <el-button type="primary" :icon="TrendCharts" @click="viewHistory">
+        历史信息
+      </el-button>
+    </div>
 
     <!-- 基本信息 -->
     <el-card shadow="hover" v-loading="loading">
@@ -249,12 +254,7 @@
                 <el-icon color="#409EFF" :size="20" style="margin-right: 8px"><CpuIcon /></el-icon>
                 <span>CPU使用率趋势</span>
               </div>
-              <el-select v-model="timeRange" @change="fetchHistory" size="small" style="width: 120px">
-                <el-option label="1小时" value="-1h" />
-                <el-option label="6小时" value="-6h" />
-                <el-option label="24小时" value="-24h" />
-                <el-option label="7天" value="-7d" />
-              </el-select>
+              <el-tag type="info" size="small">近1小时</el-tag>
             </div>
           </template>
           <div class="chart-container">
@@ -272,12 +272,7 @@
                 <el-icon color="#F56C6C" :size="20" style="margin-right: 8px"><MemoryIcon /></el-icon>
                 <span>内存使用率趋势</span>
               </div>
-              <el-select v-model="timeRange" @change="fetchHistory" size="small" style="width: 120px">
-                <el-option label="1小时" value="-1h" />
-                <el-option label="6小时" value="-6h" />
-                <el-option label="24小时" value="-24h" />
-                <el-option label="7天" value="-7d" />
-              </el-select>
+              <el-tag type="info" size="small">近1小时</el-tag>
             </div>
           </template>
           <div class="chart-container">
@@ -301,17 +296,7 @@
                   {{ diskPartitions.length }} 个挂载点
                 </el-tag>
               </div>
-              <el-select 
-                v-model="timeRange" 
-                @change="fetchAllDiskHistory" 
-                size="small" 
-                style="width: 120px"
-              >
-                <el-option label="1小时" value="-1h" />
-                <el-option label="6小时" value="-6h" />
-                <el-option label="24小时" value="-24h" />
-                <el-option label="7天" value="-7d" />
-              </el-select>
+              <el-tag type="info" size="small">近1小时</el-tag>
             </div>
           </template>
           <div class="chart-container">
@@ -333,12 +318,7 @@
                 <el-icon color="#67C23A" :size="20" style="margin-right: 8px"><NetworkIcon /></el-icon>
                 <span>网络流量趋势</span>
               </div>
-              <el-select v-model="timeRange" @change="fetchHistory" size="small" style="width: 120px">
-                <el-option label="1小时" value="-1h" />
-                <el-option label="6小时" value="-6h" />
-                <el-option label="24小时" value="-24h" />
-                <el-option label="7天" value="-7d" />
-              </el-select>
+              <el-tag type="info" size="small">近1小时</el-tag>
             </div>
           </template>
           <div class="chart-container">
@@ -352,9 +332,9 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Refresh, Folder } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Folder, TrendCharts } from '@element-plus/icons-vue'
 import CpuIcon from '@/icons/CpuIcon.vue'
 import MemoryIcon from '@/icons/MemoryIcon.vue'
 import DiskIcon from '@/icons/DiskIcon.vue'
@@ -367,8 +347,10 @@ import MemoryHistoryChart from '@/components/MemoryHistoryChart.vue'
 import DiskHistoryChart from '@/components/DiskHistoryChart.vue'
 import NetworkHistoryChart from '@/components/NetworkHistoryChart.vue'
 import dayjs from 'dayjs'
+import { realtimeMetricHistoryRange } from '@/utils/metricHistoryRanges'
 
 const route = useRoute()
+const router = useRouter()
 const hostId = route.params.id as string
 
 const loading = ref(false)
@@ -380,12 +362,17 @@ const latestNetworkSamples = ref<Array<{ timestamp: string; values: Record<strin
 const cpuHistory = ref<MetricPoint[]>([])
 const memoryHistory = ref<MetricPoint[]>([])
 const networkHistory = ref<MetricPoint[]>([])
-const timeRange = ref('-1h')
 const diskPartitions = ref<any[]>([])
 const diskHistoryMap = ref<Record<string, MetricPoint[]>>({})
 const allDiskHistory = ref<Array<{ timestamp: string; values: Record<string, number> }>>([])
 
 let timer: any = null
+const realtimeHistoryStart = realtimeMetricHistoryRange.value
+const realtimeHistoryInterval = realtimeMetricHistoryRange.interval
+
+const viewHistory = () => {
+  router.push(`/agents/${hostId}/history`)
+}
 
 const fetchAgent = async () => {
   try {
@@ -477,20 +464,20 @@ const fetchHistory = async () => {
       getHistoryMetrics({
         host_id: hostId,
         type: 'cpu',
-        start: timeRange.value,
-        interval: '1m'
+        start: realtimeHistoryStart,
+        interval: realtimeHistoryInterval
       }),
       getHistoryMetrics({
         host_id: hostId,
         type: 'memory',
-        start: timeRange.value,
-        interval: '1m'
+        start: realtimeHistoryStart,
+        interval: realtimeHistoryInterval
       }),
       getHistoryMetrics({
         host_id: hostId,
         type: 'network',
-        start: timeRange.value,
-        interval: '1m'
+        start: realtimeHistoryStart,
+        interval: realtimeHistoryInterval
       })
     ]) as unknown as [
       ApiResponse<MetricPoint[]>,
@@ -633,10 +620,10 @@ const fetchAllDiskHistory = async () => {
         const res = await getHistoryMetrics({
           host_id: hostId,
           type: 'disk',
-          start: timeRange.value,
-          interval: '1m',
+          start: realtimeHistoryStart,
+          interval: realtimeHistoryInterval,
           mountpoint: mountpoint
-        })
+        }) as unknown as ApiResponse<MetricPoint[]>
         diskHistoryMap.value[mountpoint] = res.data || []
         return { mountpoint, data: res.data || [] }
       } catch (error) {
@@ -703,6 +690,12 @@ onUnmounted(() => {
   min-height: 100vh;
   background: #f5f7fa;
   padding: 20px;
+}
+
+.page-actions {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
 }
 
 .card-header {

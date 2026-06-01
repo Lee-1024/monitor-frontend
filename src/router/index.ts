@@ -31,6 +31,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'Agent详情', requiresAuth: true }
   },
   {
+    path: '/agents/:id/history',
+    name: 'AgentHistory',
+    component: () => import('@/views/AgentHistory.vue'),
+    meta: { title: '监控历史信息', requiresAuth: true }
+  },
+  {
     path: '/crash-analysis',
     name: 'CrashAnalysis',
     component: () => import('@/views/CrashAnalysis.vue'),
@@ -128,7 +134,7 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const userStore = useUserStore()
   
   // 初始化认证状态
