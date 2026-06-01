@@ -37,6 +37,8 @@
         :loading="historyLoading"
         :metric-type="chartMetricType"
         :host-core-count="historyHostCoreCount"
+        :start-time="historyStartTime"
+        :end-time="historyEndTime"
       />
     </el-card>
 
@@ -213,6 +215,8 @@ const chartTimeRange = ref('1h')
 const historyHost = ref('')
 const historyHostCoreCount = ref(0)
 const realtimeHostCoreCount = ref(0)
+const historyStartTime = ref('')
+const historyEndTime = ref('')
 
 // 用于控制错误提示频率，避免频繁提示
 let lastEmptyWarningTime = 0 // 空数据提示时间
@@ -464,14 +468,15 @@ const loadProcessHistory = async () => {
     const hours = parseInt(chartTimeRange.value.replace('h', ''))
     const end = dayjs()
     const start = end.subtract(hours, 'hour')
+    historyStartTime.value = start.toISOString()
+    historyEndTime.value = end.toISOString()
     
     // 不传 process_names，让后端自动从历史数据中查找CPU/内存占用最高的前10个进程
     const params: any = {
       metric_type: chartMetricType.value, // cpu 或 memory
       top_n: 10, // 前10个进程
-      start: start.toISOString(),
-      end: end.toISOString(),
-      limit: 5000
+      start: historyStartTime.value,
+      end: historyEndTime.value
     }
     
     if (historyHost.value) {

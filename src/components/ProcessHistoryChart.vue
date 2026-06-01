@@ -22,6 +22,8 @@ const props = defineProps<{
   loading?: boolean
   metricType?: 'cpu' | 'memory' // 显示CPU还是内存
   hostCoreCount?: number
+  startTime?: string
+  endTime?: string
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -39,16 +41,16 @@ const updateChart = () => {
   
   // 按进程名分组数据
   const timestamps = getSortedMetricTimestamps(props.data)
-  const processMap = new Map<string, Map<string, { value: number; raw: typeof props.data[number] }>>()
+  const processMap = new Map<string, Array<[string, number]>>()
   
   props.data.forEach(item => {
     const processName = item.process_name
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     
     if (!processMap.has(processName)) {
-      processMap.set(processName, new Map())
+      processMap.set(processName, [])
     }
-    processMap.get(processName)!.set(item.timestamp, { value, raw: item })
+    processMap.get(processName)!.push([item.timestamp, value])
   })
   
   // 构建系列数据
@@ -60,17 +62,11 @@ const updateChart = () => {
   
   let colorIndex = 0
   processMap.forEach((data, processName) => {
-    // 为每个时间点创建数据点
-    const values = timestamps.map(time => {
-      const point = data.get(time)
-      return point ? point.value : null
-    })
-    
     series.push({
       name: processName,
       type: 'line',
       smooth: true,
-      data: values,
+      data: data.sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()),
       itemStyle: {
         color: colors[colorIndex % colors.length]
       },
@@ -125,12 +121,12 @@ const updateChart = () => {
       containLabel: true
     },
     xAxis: {
-      type: 'category',
+      type: 'time',
       boundaryGap: false,
-      data: timestamps,
+      min: props.startTime,
+      max: props.endTime,
       axisLabel: {
         rotate: 45,
-        interval: Math.floor(timestamps.length / 10), // 显示部分标签，避免重叠
         formatter: (value: string) => formatMetricAxisTimestamp(value, timestamps)
       }
     },
@@ -177,7 +173,7 @@ function getRawPoint(processName: string, axisTime: string) {
   })
 }
 
-watch(() => [props.data, props.metricType, props.hostCoreCount], () => {
+watch(() => [props.data, props.metricType, props.hostCoreCount, props.startTime, props.endTime], () => {
   updateChart()
 }, { deep: true })
 

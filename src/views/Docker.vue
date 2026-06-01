@@ -36,6 +36,8 @@
         :loading="historyLoading"
         :metric-type="chartMetricType"
         :host-core-count="historyHostCoreCount"
+        :start-time="historyStartTime"
+        :end-time="historyEndTime"
       />
     </el-card>
 
@@ -156,6 +158,8 @@ const chartTimeRange = ref('1h')
 const pagination = ref({ page: 1, pageSize: 10, total: 0 })
 const realtimeHostCoreCount = ref(0)
 const historyHostCoreCount = ref(0)
+const historyStartTime = ref('')
+const historyEndTime = ref('')
 
 const sortedContainers = computed(() => {
   const rows = [...containers.value]
@@ -228,12 +232,13 @@ async function loadHistory() {
     const hours = Number(chartTimeRange.value.replace('h', ''))
     const end = dayjs()
     const start = end.subtract(hours, 'hour')
+    historyStartTime.value = start.toISOString()
+    historyEndTime.value = end.toISOString()
     const params: Record<string, any> = {
       metric_type: chartMetricType.value,
       top_n: 10,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      limit: 5000
+      start: historyStartTime.value,
+      end: historyEndTime.value
     }
     if (historyHost.value) params.host_id = historyHost.value
     const res = await getDockerHistory(params)

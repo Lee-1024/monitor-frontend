@@ -15,6 +15,8 @@ const props = defineProps<{
   loading?: boolean
   metricType: 'cpu' | 'memory'
   hostCoreCount?: number
+  startTime?: string
+  endTime?: string
 }>()
 
 const chartRef = ref<HTMLElement>()
@@ -32,14 +34,14 @@ function updateChart() {
   if (!chart) return
 
   const timestamps = getSortedMetricTimestamps(props.data)
-  const containerMap = new Map<string, Map<string, { value: number; raw: DockerHistoryPoint }>>()
+  const containerMap = new Map<string, Array<[string, number]>>()
   props.data.forEach((item) => {
     const name = item.container_name || 'unknown'
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     if (!containerMap.has(name)) {
-      containerMap.set(name, new Map())
+      containerMap.set(name, [])
     }
-    containerMap.get(name)!.set(item.timestamp, { value, raw: item })
+    containerMap.get(name)!.push([item.timestamp, value])
   })
 
   const series = Array.from(containerMap.entries()).map(([name, items]) => ({
@@ -47,7 +49,7 @@ function updateChart() {
     type: 'line',
     smooth: true,
     symbolSize: 4,
-    data: timestamps.map((time) => items.get(time)?.value ?? null),
+    data: items.sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()),
     connectNulls: false
   }))
   const yAxisMax = getYAxisMax()
@@ -89,9 +91,10 @@ function updateChart() {
       containLabel: true
     },
     xAxis: {
-      type: 'category',
+      type: 'time',
       boundaryGap: false,
-      data: timestamps,
+      min: props.startTime,
+      max: props.endTime,
       axisLabel: {
         formatter: (value: string) => formatMetricAxisTimestamp(value, timestamps)
       }
@@ -149,7 +152,7 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;')
 }
 
-watch(() => [props.data, props.metricType, props.hostCoreCount], updateChart, { deep: true })
+watch(() => [props.data, props.metricType, props.hostCoreCount, props.startTime, props.endTime], updateChart, { deep: true })
 
 onMounted(() => {
   initChart()
