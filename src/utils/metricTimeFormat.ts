@@ -24,3 +24,13 @@ export const getMetricTimeFormat = (data: TimestampPoint[]) => {
 export const formatMetricTimestamp = (timestamp: string, data: TimestampPoint[]) => {
   return dayjs(timestamp).format(getMetricTimeFormat(data))
 }
+
+export const getSortedMetricTimestamps = (data: TimestampPoint[]) => {
+  return Array.from(new Set(data.map(item => item.timestamp)))
+    .sort((a, b) => dayjs(a).valueOf() - dayjs(b).valueOf())
+}
+
+export const formatMetricAxisTimestamp = (timestamp: string, allTimestamps: string[]) => {
+  const points = allTimestamps.map(item => ({ timestamp: item }))
+  return dayjs(timestamp).format(getMetricTimeFormat(points))
+}

@@ -7,8 +7,8 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import * as echarts from 'echarts'
-import dayjs from 'dayjs'
 import type { DockerHistoryPoint } from '@/api/docker'
+import { formatMetricAxisTimestamp, getSortedMetricTimestamps } from '@/utils/metricTimeFormat'
 
 const props = defineProps<{
   data: DockerHistoryPoint[]
@@ -31,26 +31,23 @@ function initChart() {
 function updateChart() {
   if (!chart) return
 
-  const containerMap = new Map<string, Array<{ time: string; value: number }>>()
+  const timestamps = getSortedMetricTimestamps(props.data)
+  const containerMap = new Map<string, Map<string, { value: number; raw: DockerHistoryPoint }>>()
   props.data.forEach((item) => {
     const name = item.container_name || 'unknown'
-    const time = dayjs(item.timestamp).format('HH:mm:ss')
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     if (!containerMap.has(name)) {
-      containerMap.set(name, [])
+      containerMap.set(name, new Map())
     }
-    containerMap.get(name)!.push({ time, value })
+    containerMap.get(name)!.set(item.timestamp, { value, raw: item })
   })
 
-  const allTimes = new Set<string>()
-  containerMap.forEach((items) => items.forEach((item) => allTimes.add(item.time)))
-  const times = Array.from(allTimes).sort()
   const series = Array.from(containerMap.entries()).map(([name, items]) => ({
     name,
     type: 'line',
     smooth: true,
     symbolSize: 4,
-    data: times.map((time) => items.find((item) => item.time === time)?.value ?? null),
+    data: timestamps.map((time) => items.get(time)?.value ?? null),
     connectNulls: false
   }))
   const yAxisMax = getYAxisMax()
@@ -63,7 +60,8 @@ function updateChart() {
       className: 'docker-chart-tooltip',
       formatter: (params: any) => {
         if (!Array.isArray(params) || params.length === 0) return ''
-        let html = `${params[0].axisValue}<br/>`
+        const timestamp = String(params[0].axisValue || '')
+        let html = `${formatMetricAxisTimestamp(timestamp, timestamps)}<br/>`
         params.forEach((item: any) => {
           if (item.value !== null && item.value !== undefined) {
             const name = escapeHtml(String(item.seriesName || 'unknown'))
@@ -93,7 +91,10 @@ function updateChart() {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: times
+      data: timestamps,
+      axisLabel: {
+        formatter: (value: string) => formatMetricAxisTimestamp(value, timestamps)
+      }
     },
     yAxis: {
       type: 'value',
@@ -130,8 +131,7 @@ function formatCPUCores(cpuPercent: number) {
 function getRawPoint(containerName: string, axisTime: string) {
   return props.data.find((item) => {
     const name = item.container_name || 'unknown'
-    const time = dayjs(item.timestamp).format('HH:mm:ss')
-    return name === containerName && time === axisTime
+    return name === containerName && item.timestamp === axisTime
   })
 }
 

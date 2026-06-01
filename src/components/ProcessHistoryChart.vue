@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import * as echarts from 'echarts'
-import dayjs from 'dayjs'
+import { formatMetricAxisTimestamp, getSortedMetricTimestamps } from '@/utils/metricTimeFormat'
 
 const props = defineProps<{
   data: Array<{
@@ -38,25 +38,18 @@ const updateChart = () => {
   if (!chart || !props.data || props.data.length === 0) return
   
   // 按进程名分组数据
-  const processMap = new Map<string, Array<{ time: string; value: number }>>()
+  const timestamps = getSortedMetricTimestamps(props.data)
+  const processMap = new Map<string, Map<string, { value: number; raw: typeof props.data[number] }>>()
   
   props.data.forEach(item => {
     const processName = item.process_name
-    const time = dayjs(item.timestamp).format('HH:mm:ss')
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     
     if (!processMap.has(processName)) {
-      processMap.set(processName, [])
+      processMap.set(processName, new Map())
     }
-    processMap.get(processName)!.push({ time, value })
+    processMap.get(processName)!.set(item.timestamp, { value, raw: item })
   })
-  
-  // 获取所有时间点（去重并排序）
-  const allTimes = new Set<string>()
-  processMap.forEach(data => {
-    data.forEach(item => allTimes.add(item.time))
-  })
-  const times = Array.from(allTimes).sort()
   
   // 构建系列数据
   const series: any[] = []
@@ -68,8 +61,8 @@ const updateChart = () => {
   let colorIndex = 0
   processMap.forEach((data, processName) => {
     // 为每个时间点创建数据点
-    const values = times.map(time => {
-      const point = data.find(d => d.time === time)
+    const values = timestamps.map(time => {
+      const point = data.get(time)
       return point ? point.value : null
     })
     
@@ -101,7 +94,8 @@ const updateChart = () => {
         if (!params || !Array.isArray(params) || params.length === 0) {
           return ''
         }
-        let result = `${params[0].axisValue}<br/>`
+        const timestamp = String(params[0].axisValue || '')
+        let result = `${formatMetricAxisTimestamp(timestamp, timestamps)}<br/>`
         params.forEach((item: any) => {
           if (item.value !== null && item.value !== undefined) {
             const value = typeof item.value === 'number' ? item.value : parseFloat(item.value) || 0
@@ -133,10 +127,11 @@ const updateChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: times,
+      data: timestamps,
       axisLabel: {
         rotate: 45,
-        interval: Math.floor(times.length / 10) // 显示部分标签，避免重叠
+        interval: Math.floor(timestamps.length / 10), // 显示部分标签，避免重叠
+        formatter: (value: string) => formatMetricAxisTimestamp(value, timestamps)
       }
     },
     yAxis: {
@@ -178,8 +173,7 @@ function formatCPUCores(cpuPercent: number) {
 
 function getRawPoint(processName: string, axisTime: string) {
   return props.data.find((item) => {
-    const time = dayjs(item.timestamp).format('HH:mm:ss')
-    return item.process_name === processName && time === axisTime
+    return item.process_name === processName && item.timestamp === axisTime
   })
 }
 
