@@ -72,7 +72,17 @@ const updateChart = () => {
   ]
   
   let colorIndex = 0
-  processMap.forEach((data, processName) => {
+  const topProcesses = Array.from(processMap.entries())
+    .map(([processName, data]) => ({
+      processName,
+      data,
+      maxValue: Math.max(...data.map(item => item.value[1]))
+    }))
+    .filter(item => item.maxValue > 0)
+    .sort((a, b) => b.maxValue - a.maxValue)
+    .slice(0, 10)
+
+  topProcesses.forEach(({ data, processName }) => {
     series.push({
       name: processName,
       type: 'line',
@@ -126,7 +136,7 @@ const updateChart = () => {
       }
     },
     legend: {
-      data: Array.from(processMap.keys()),
+      data: topProcesses.map(item => item.processName),
       top: 10,
       left: 'center',
       type: 'scroll',

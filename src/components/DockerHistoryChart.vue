@@ -50,7 +50,17 @@ function updateChart() {
     })
   })
 
-  const series = Array.from(containerMap.entries()).map(([name, items]) => ({
+  const topContainers = Array.from(containerMap.entries())
+    .map(([name, items]) => ({
+      name,
+      items,
+      maxValue: Math.max(...items.map(item => item.value[1]))
+    }))
+    .filter(item => item.maxValue > 0)
+    .sort((a, b) => b.maxValue - a.maxValue)
+    .slice(0, 10)
+
+  const series = topContainers.map(({ name, items }) => ({
     name,
     type: 'line',
     smooth: true,
@@ -88,7 +98,7 @@ function updateChart() {
       }
     },
     legend: {
-      data: Array.from(containerMap.keys()),
+      data: topContainers.map(item => item.name),
       top: 10,
       type: 'scroll'
     },
