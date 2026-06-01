@@ -34,14 +34,20 @@ function updateChart() {
   if (!chart) return
 
   const timestamps = getSortedMetricTimestamps(props.data)
-  const containerMap = new Map<string, Array<[string, number]>>()
+  const containerMap = new Map<string, Array<{
+    value: [number, number]
+    raw: DockerHistoryPoint
+  }>>()
   props.data.forEach((item) => {
     const name = item.container_name || 'unknown'
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     if (!containerMap.has(name)) {
       containerMap.set(name, [])
     }
-    containerMap.get(name)!.push([item.timestamp, value])
+    containerMap.get(name)!.push({
+      value: [new Date(item.timestamp).getTime(), value],
+      raw: item
+    })
   })
 
   const series = Array.from(containerMap.entries()).map(([name, items]) => ({
@@ -49,7 +55,7 @@ function updateChart() {
     type: 'line',
     smooth: true,
     symbolSize: 4,
-    data: items.sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()),
+    data: items.sort((a, b) => a.value[0] - b.value[0]),
     connectNulls: false
   }))
   const yAxisMax = getYAxisMax()
@@ -57,21 +63,24 @@ function updateChart() {
   chart.setOption({
     tooltip: {
       trigger: 'axis',
-      confine: true,
-      appendToBody: false,
+      confine: false,
+      appendToBody: true,
       className: 'docker-chart-tooltip',
+      extraCssText: 'z-index: 3000; max-height: 320px; overflow-y: auto;',
       formatter: (params: any) => {
         if (!Array.isArray(params) || params.length === 0) return ''
-        const timestamp = String(params[0].axisValue || '')
-        let html = `${formatMetricAxisTimestamp(timestamp, timestamps)}<br/>`
+        const timestampValue = getTooltipTimestamp(params[0])
+        let html = `${formatMetricAxisTimestamp(new Date(timestampValue).toISOString(), timestamps)}<br/>`
         params.forEach((item: any) => {
           if (item.value !== null && item.value !== undefined) {
             const name = escapeHtml(String(item.seriesName || 'unknown'))
             const shortName = escapeHtml(truncateContainerName(String(item.seriesName || 'unknown')))
-            const rawPoint = getRawPoint(String(item.seriesName || 'unknown'), String(item.axisValue || ''))
+            const pointTime = getTooltipTimestamp(item)
+            const value = getTooltipValue(item)
+            const rawPoint = getTooltipRawPoint(item) || getRawPoint(String(item.seriesName || 'unknown'), pointTime)
             const detail = props.metricType === 'cpu' && rawPoint
               ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${rawPoint.cpu_percent.toFixed(2)}%`
-              : `${Number(item.value).toFixed(2)}%`
+              : `${value.toFixed(2)}%`
             html += `<div class="docker-tooltip-row">${item.marker}<span class="docker-tooltip-name" title="${name}">${shortName}</span><strong>${detail}</strong></div>`
           }
         })
@@ -86,7 +95,7 @@ function updateChart() {
     grid: {
       left: '3%',
       right: '4%',
-      top: '20%',
+      top: '24%',
       bottom: '8%',
       containLabel: true
     },
@@ -124,6 +133,9 @@ function getCPUCapacityPercent(cpuPercent: number) {
 }
 
 function formatCPUCapacity(cpuPercent: number) {
+  if ((props.hostCoreCount || 0) <= 0) {
+    return `原始${(cpuPercent || 0).toFixed(2)}%`
+  }
   return `${getCPUCapacityPercent(cpuPercent).toFixed(2)}%`
 }
 
@@ -131,10 +143,28 @@ function formatCPUCores(cpuPercent: number) {
   return `${((cpuPercent || 0) / 100).toFixed(2)}核`
 }
 
-function getRawPoint(containerName: string, axisTime: string) {
+function getTooltipTimestamp(item: any) {
+  if (Array.isArray(item?.value)) {
+    return Number(item.value[0] || 0)
+  }
+  return Number(item?.axisValue || 0)
+}
+
+function getTooltipValue(item: any) {
+  if (Array.isArray(item?.value)) {
+    return Number(item.value[1] || 0)
+  }
+  return Number(item?.value || 0)
+}
+
+function getTooltipRawPoint(item: any) {
+  return item?.data?.raw
+}
+
+function getRawPoint(containerName: string, axisTime: number) {
   return props.data.find((item) => {
     const name = item.container_name || 'unknown'
-    return name === containerName && item.timestamp === axisTime
+    return name === containerName && new Date(item.timestamp).getTime() === axisTime
   })
 }
 

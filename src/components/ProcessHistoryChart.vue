@@ -41,7 +41,15 @@ const updateChart = () => {
   
   // 按进程名分组数据
   const timestamps = getSortedMetricTimestamps(props.data)
-  const processMap = new Map<string, Array<[string, number]>>()
+  const processMap = new Map<string, Array<{
+    value: [number, number]
+    raw: {
+      timestamp: string
+      process_name: string
+      cpu_percent: number
+      memory_percent: number
+    }
+  }>>()
   
   props.data.forEach(item => {
     const processName = item.process_name
@@ -50,7 +58,10 @@ const updateChart = () => {
     if (!processMap.has(processName)) {
       processMap.set(processName, [])
     }
-    processMap.get(processName)!.push([item.timestamp, value])
+    processMap.get(processName)!.push({
+      value: [new Date(item.timestamp).getTime(), value],
+      raw: item
+    })
   })
   
   // 构建系列数据
@@ -66,7 +77,7 @@ const updateChart = () => {
       name: processName,
       type: 'line',
       smooth: true,
-      data: data.sort((a, b) => new Date(a[0]).getTime() - new Date(b[0]).getTime()),
+      data: data.sort((a, b) => a.value[0] - b.value[0]),
       itemStyle: {
         color: colors[colorIndex % colors.length]
       },
@@ -83,6 +94,10 @@ const updateChart = () => {
   const option = {
     tooltip: {
       trigger: 'axis',
+      confine: false,
+      appendToBody: true,
+      className: 'process-chart-tooltip',
+      extraCssText: 'z-index: 3000; max-height: 320px; overflow-y: auto;',
       axisPointer: {
         type: 'cross'
       },
@@ -90,16 +105,21 @@ const updateChart = () => {
         if (!params || !Array.isArray(params) || params.length === 0) {
           return ''
         }
-        const timestamp = String(params[0].axisValue || '')
-        let result = `${formatMetricAxisTimestamp(timestamp, timestamps)}<br/>`
+        const timestampValue = getTooltipTimestamp(params[0])
+        let result = `${formatMetricAxisTimestamp(new Date(timestampValue).toISOString(), timestamps)}<br/>`
         params.forEach((item: any) => {
           if (item.value !== null && item.value !== undefined) {
-            const value = typeof item.value === 'number' ? item.value : parseFloat(item.value) || 0
-            const rawPoint = getRawPoint(String(item.seriesName || ''), String(item.axisValue || ''))
+            const pointTime = getTooltipTimestamp(item)
+            const value = getTooltipValue(item)
+            const rawPoint = getTooltipRawPoint(item) || getRawPoint(String(item.seriesName || ''), timestampValue)
             const detail = props.metricType === 'cpu' && rawPoint
-              ? `${value.toFixed(2)}% / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${rawPoint.cpu_percent.toFixed(2)}%`
+              ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)}`
               : `${value.toFixed(2)}%`
-            result += `${item.marker || '●'} ${item.seriesName}: <strong>${detail}</strong><br/>`
+            const matchedPoint = rawPoint || getRawPoint(String(item.seriesName || ''), pointTime)
+            const matchedDetail = props.metricType === 'cpu' && matchedPoint
+              ? `${formatCPUCapacity(matchedPoint.cpu_percent)} / ${formatCPUCores(matchedPoint.cpu_percent)}`
+              : detail
+            result += `${item.marker || '●'} ${item.seriesName}: <strong>${matchedDetail}</strong><br/>`
           }
         })
         return result
@@ -117,7 +137,7 @@ const updateChart = () => {
       left: '3%',
       right: '4%',
       bottom: '8%',
-      top: '20%',
+      top: '24%',
       containLabel: true
     },
     xAxis: {
@@ -163,13 +183,38 @@ function getCPUCapacityPercent(cpuPercent: number) {
   return (cpuPercent || 0) / coreCount
 }
 
+function formatCPUCapacity(cpuPercent: number) {
+  if ((props.hostCoreCount || 0) <= 0) {
+    return `原始${(cpuPercent || 0).toFixed(2)}%`
+  }
+  return `${getCPUCapacityPercent(cpuPercent).toFixed(2)}%`
+}
+
 function formatCPUCores(cpuPercent: number) {
   return `${((cpuPercent || 0) / 100).toFixed(2)}核`
 }
 
-function getRawPoint(processName: string, axisTime: string) {
+function getTooltipTimestamp(item: any) {
+  if (Array.isArray(item?.value)) {
+    return Number(item.value[0] || 0)
+  }
+  return Number(item?.axisValue || 0)
+}
+
+function getTooltipValue(item: any) {
+  if (Array.isArray(item?.value)) {
+    return Number(item.value[1] || 0)
+  }
+  return Number(item?.value || 0)
+}
+
+function getTooltipRawPoint(item: any) {
+  return item?.data?.raw
+}
+
+function getRawPoint(processName: string, axisTime: number) {
   return props.data.find((item) => {
-    return item.process_name === processName && item.timestamp === axisTime
+    return item.process_name === processName && new Date(item.timestamp).getTime() === axisTime
   })
 }
 
@@ -191,4 +236,12 @@ onUnmounted(() => {
   chart?.dispose()
 })
 </script>
+
+<style scoped>
+:global(.process-chart-tooltip) {
+  max-width: 420px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+</style>
 
