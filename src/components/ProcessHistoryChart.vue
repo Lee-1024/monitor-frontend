@@ -117,20 +117,16 @@ const updateChart = () => {
         }
         const timestampValue = getTooltipTimestamp(params[0])
         let result = `${formatMetricAxisTimestamp(new Date(timestampValue).toISOString(), timestamps)}<br/>`
-        params.forEach((item: any) => {
-          if (item.value !== null && item.value !== undefined) {
-            const pointTime = getTooltipTimestamp(item)
-            const value = getTooltipValue(item)
-            const rawPoint = getTooltipRawPoint(item) || getRawPoint(String(item.seriesName || ''), timestampValue)
-            const detail = props.metricType === 'cpu' && rawPoint
-              ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)}`
-              : `${value.toFixed(2)}%`
-            const matchedPoint = rawPoint || getRawPoint(String(item.seriesName || ''), pointTime)
-            const matchedDetail = props.metricType === 'cpu' && matchedPoint
-              ? `${formatCPUCapacity(matchedPoint.cpu_percent)} / ${formatCPUCores(matchedPoint.cpu_percent)}`
-              : detail
-            result += `${item.marker || '●'} ${item.seriesName}: <strong>${matchedDetail}</strong><br/>`
-          }
+        params.slice(0, 10).forEach((item: any) => {
+          const rawPoint = getRawPoint(String(item.seriesName || ''), timestampValue)
+          if (!rawPoint) return
+
+          if (!hasMetricValue(rawPoint)) return
+
+          const detail = props.metricType === 'cpu'
+            ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${formatPercent(rawPoint.cpu_percent)}`
+            : `${formatPercent(rawPoint.memory_percent)}`
+          result += `${item.marker || '●'} ${item.seriesName}: <strong>${detail}</strong><br/>`
         })
         return result
       }
@@ -195,13 +191,22 @@ function getCPUCapacityPercent(cpuPercent: number) {
 
 function formatCPUCapacity(cpuPercent: number) {
   if ((props.hostCoreCount || 0) <= 0) {
-    return `原始${(cpuPercent || 0).toFixed(2)}%`
+    return `原始${formatPercent(cpuPercent)}`
   }
-  return `${getCPUCapacityPercent(cpuPercent).toFixed(2)}%`
+  return formatPercent(getCPUCapacityPercent(cpuPercent))
 }
 
 function formatCPUCores(cpuPercent: number) {
   return `${((cpuPercent || 0) / 100).toFixed(2)}核`
+}
+
+function hasMetricValue(item: { cpu_percent: number; memory_percent: number }) {
+  return props.metricType === 'cpu' ? item.cpu_percent > 0 : item.memory_percent > 0
+}
+
+function formatPercent(value: number) {
+  if (value > 0 && value < 0.01) return '<0.01%'
+  return `${(value || 0).toFixed(2)}%`
 }
 
 function getTooltipTimestamp(item: any) {
@@ -209,17 +214,6 @@ function getTooltipTimestamp(item: any) {
     return Number(item.value[0] || 0)
   }
   return Number(item?.axisValue || 0)
-}
-
-function getTooltipValue(item: any) {
-  if (Array.isArray(item?.value)) {
-    return Number(item.value[1] || 0)
-  }
-  return Number(item?.value || 0)
-}
-
-function getTooltipRawPoint(item: any) {
-  return item?.data?.raw
 }
 
 function getRawPoint(processName: string, axisTime: number) {

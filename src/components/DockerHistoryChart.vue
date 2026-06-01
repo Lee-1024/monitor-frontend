@@ -81,18 +81,18 @@ function updateChart() {
         if (!Array.isArray(params) || params.length === 0) return ''
         const timestampValue = getTooltipTimestamp(params[0])
         let html = `${formatMetricAxisTimestamp(new Date(timestampValue).toISOString(), timestamps)}<br/>`
-        params.forEach((item: any) => {
-          if (item.value !== null && item.value !== undefined) {
-            const name = escapeHtml(String(item.seriesName || 'unknown'))
-            const shortName = escapeHtml(truncateContainerName(String(item.seriesName || 'unknown')))
-            const pointTime = getTooltipTimestamp(item)
-            const value = getTooltipValue(item)
-            const rawPoint = getTooltipRawPoint(item) || getRawPoint(String(item.seriesName || 'unknown'), pointTime)
-            const detail = props.metricType === 'cpu' && rawPoint
-              ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${rawPoint.cpu_percent.toFixed(2)}%`
-              : `${value.toFixed(2)}%`
-            html += `<div class="docker-tooltip-row">${item.marker}<span class="docker-tooltip-name" title="${name}">${shortName}</span><strong>${detail}</strong></div>`
-          }
+        params.slice(0, 10).forEach((item: any) => {
+          const rawPoint = getRawPoint(String(item.seriesName || 'unknown'), timestampValue)
+          if (!rawPoint) return
+
+          if (!hasMetricValue(rawPoint)) return
+
+          const name = escapeHtml(String(item.seriesName || 'unknown'))
+          const shortName = escapeHtml(truncateContainerName(String(item.seriesName || 'unknown')))
+          const detail = props.metricType === 'cpu'
+            ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${formatPercent(rawPoint.cpu_percent)}`
+            : `${formatPercent(rawPoint.memory_percent)}`
+          html += `<div class="docker-tooltip-row">${item.marker}<span class="docker-tooltip-name" title="${name}">${shortName}</span><strong>${detail}</strong></div>`
         })
         return html
       }
@@ -144,13 +144,22 @@ function getCPUCapacityPercent(cpuPercent: number) {
 
 function formatCPUCapacity(cpuPercent: number) {
   if ((props.hostCoreCount || 0) <= 0) {
-    return `原始${(cpuPercent || 0).toFixed(2)}%`
+    return `原始${formatPercent(cpuPercent)}`
   }
-  return `${getCPUCapacityPercent(cpuPercent).toFixed(2)}%`
+  return formatPercent(getCPUCapacityPercent(cpuPercent))
 }
 
 function formatCPUCores(cpuPercent: number) {
   return `${((cpuPercent || 0) / 100).toFixed(2)}核`
+}
+
+function hasMetricValue(item: DockerHistoryPoint) {
+  return props.metricType === 'cpu' ? item.cpu_percent > 0 : item.memory_percent > 0
+}
+
+function formatPercent(value: number) {
+  if (value > 0 && value < 0.01) return '<0.01%'
+  return `${(value || 0).toFixed(2)}%`
 }
 
 function getTooltipTimestamp(item: any) {
@@ -158,17 +167,6 @@ function getTooltipTimestamp(item: any) {
     return Number(item.value[0] || 0)
   }
   return Number(item?.axisValue || 0)
-}
-
-function getTooltipValue(item: any) {
-  if (Array.isArray(item?.value)) {
-    return Number(item.value[1] || 0)
-  }
-  return Number(item?.value || 0)
-}
-
-function getTooltipRawPoint(item: any) {
-  return item?.data?.raw
 }
 
 function getRawPoint(containerName: string, axisTime: number) {
