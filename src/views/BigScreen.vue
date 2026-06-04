@@ -533,7 +533,10 @@ const updateCPUChart = (data: any[]) => {
       type: 'category',
       data: data.map((item: any) => item.host_id || '未知').reverse(),
       axisLine: { lineStyle: { color: '#00d4ff' } },
-      axisLabel: { color: '#00d4ff' }
+      axisLabel: {
+        color: '#00d4ff',
+        interval: 0
+      }
     },
     series: [{
       type: 'bar',
@@ -581,7 +584,10 @@ const updateMemoryChart = (data: any[]) => {
       type: 'category',
       data: data.map((item: any) => item.host_id || '未知').reverse(),
       axisLine: { lineStyle: { color: '#00ff88' } },
-      axisLabel: { color: '#00ff88' }
+      axisLabel: {
+        color: '#00ff88',
+        interval: 0
+      }
     },
     series: [{
       type: 'bar',

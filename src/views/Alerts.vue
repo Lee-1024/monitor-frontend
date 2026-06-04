@@ -418,10 +418,11 @@
             <el-option label="网络" value="network" />
             <el-option label="主机宕机" value="host_down" />
             <el-option label="服务端口" value="service_port" />
+            <el-option label="服务端探测" value="server_probe" />
             <el-option label="GPU不可用" value="gpu_unavailable" />
           </el-select>
         </el-form-item>
-        <el-form-item label="主机ID" prop="host_id">
+        <el-form-item label="主机ID" prop="host_id" v-if="ruleForm.metric_type !== 'server_probe'">
           <el-select 
             v-model="ruleForm.host_ids"
             placeholder="选择主机（不选表示所有主机）"
@@ -464,6 +465,24 @@
             />
           </el-select>
           <span style="margin-left: 10px; color: #909399">从服务监控页面配置的端口中选择</span>
+        </el-form-item>
+        <el-form-item label="探测目标" prop="server_probe_target_ids" v-if="ruleForm.metric_type === 'server_probe'">
+          <el-select
+            v-model="ruleForm.server_probe_target_ids"
+            placeholder="请选择服务端探测目标"
+            multiple
+            collapse-tags
+            collapse-tags-tooltip
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="target in serverProbeTargets"
+              :key="target.id"
+              :label="getServerProbeTargetText(target)"
+              :value="target.id"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="条件" prop="condition" v-if="!isNoThresholdMetric(ruleForm.metric_type || '')">
           <el-select v-model="ruleForm.condition" placeholder="请选择条件">
@@ -516,6 +535,13 @@
           >
             <template #default>
               GPU不可用告警：当主机最新指标中未检测到可用显卡设备，并持续达到规则设置时间后触发告警。无需设置阈值。
+            </template>
+          </el-alert>
+        </el-form-item>
+        <el-form-item v-if="ruleForm.metric_type === 'server_probe'" label="说明">
+          <el-alert type="info" :closable="false" show-icon>
+            <template #default>
+              服务端探测告警：当后端配置的 TCP 或 HTTP/HTTPS 探测目标失败，并持续达到规则设置时间后触发告警。无需设置阈值。
             </template>
           </el-alert>
         </el-form-item>
@@ -705,6 +731,7 @@ import type { Agent, ApiResponse } from '@/types'
 import { useAlertStore } from '@/stores/alert'
 import { useRoute, useRouter } from 'vue-router'
 import { getServices } from '@/api/service'
+import { getServerProbeTargets, type ServerProbeTarget } from '@/api/serverProbe'
 
 const route = useRoute()
 const router = useRouter()
@@ -743,12 +770,13 @@ const ruleDialogTitle = computed(() => isEditRule.value ? '编辑告警规则' :
 const isEditRule = ref(false)
 const ruleSubmitLoading = ref(false)
 const ruleFormRef = ref<FormInstance>()
-const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string; host_ids: string[] }>({
+const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string; host_ids: string[]; server_probe_target_ids: number[] }>({
   name: '',
   description: '',
   metric_type: 'cpu',
   host_id: '',
   host_ids: [],
+  server_probe_target_ids: [],
   mountpoint: '',
   service_port: undefined,
   condition: 'gte',
@@ -764,8 +792,9 @@ const ruleForm = reactive<Partial<AlertRule> & { receiversStr: string; host_ids:
 
 // 可用的服务端口列表（从服务监控数据中获取）
 const availableServicePorts = ref<number[]>([])
+const serverProbeTargets = ref<ServerProbeTarget[]>([])
 
-const noThresholdMetricTypes = ['host_down', 'service_port', 'gpu_unavailable']
+const noThresholdMetricTypes = ['host_down', 'service_port', 'gpu_unavailable', 'server_probe']
 const isNoThresholdMetric = (metricType: string) => noThresholdMetricTypes.includes(metricType)
 const splitRuleHostIDs = (hostID?: string) => (hostID || '')
   .split(',')
@@ -780,7 +809,7 @@ const ruleFormRules: FormRules = {
   metric_type: [{ required: true, message: '请选择指标类型', trigger: 'change' }],
   condition: [
     {
-      validator: (rule: any, value: any, callback: any) => {
+      validator: (_rule: any, value: any, callback: any) => {
         if (!isNoThresholdMetric(ruleForm.metric_type || '') && !value) {
           callback(new Error('请选择条件'))
         } else {
@@ -792,7 +821,7 @@ const ruleFormRules: FormRules = {
   ],
   threshold: [
     {
-      validator: (rule: any, value: any, callback: any) => {
+      validator: (_rule: any, value: any, callback: any) => {
         if (!isNoThresholdMetric(ruleForm.metric_type || '') && value === undefined) {
           callback(new Error('请输入阈值'))
         } else {
@@ -804,9 +833,21 @@ const ruleFormRules: FormRules = {
   ],
   service_port: [
     {
-      validator: (rule: any, value: any, callback: any) => {
+      validator: (_rule: any, value: any, callback: any) => {
         if (ruleForm.metric_type === 'service_port' && (!value || value <= 0)) {
           callback(new Error('请选择服务端口'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'change'
+    }
+  ],
+  server_probe_target_ids: [
+    {
+      validator: (_rule: any, value: any, callback: any) => {
+        if (ruleForm.metric_type === 'server_probe' && (!Array.isArray(value) || value.length === 0)) {
+          callback(new Error('请选择服务端探测目标'))
         } else {
           callback()
         }
@@ -1176,6 +1217,9 @@ const handleCreateRule = () => {
   if (ruleForm.metric_type === 'service_port') {
     loadAvailableServicePorts()
   }
+  if (ruleForm.metric_type === 'server_probe') {
+    loadServerProbeTargets()
+  }
   ruleDialogVisible.value = true
 }
 
@@ -1188,6 +1232,7 @@ const handleEditRule = (rule: AlertRule) => {
     metric_type: rule.metric_type,
     host_id: rule.host_id,
     host_ids: getRuleHostIDs(rule),
+    server_probe_target_ids: Array.isArray(rule.server_probe_target_ids) ? rule.server_probe_target_ids : [],
     mountpoint: rule.mountpoint || '',
     service_port: rule.service_port,
     condition: rule.condition,
@@ -1205,6 +1250,9 @@ const handleEditRule = (rule: AlertRule) => {
   // 如果是服务端口类型，加载端口列表（根据编辑的主机ID）
   if (rule.metric_type === 'service_port') {
     loadAvailableServicePorts()
+  }
+  if (rule.metric_type === 'server_probe') {
+    loadServerProbeTargets()
   }
   ruleDialogVisible.value = true
 }
@@ -1268,8 +1316,9 @@ const handleRuleSubmit = async () => {
           name: ruleForm.name,
           description: ruleForm.description,
           metric_type: ruleForm.metric_type,
-          host_id: (ruleForm.host_ids || []).length === 1 ? ruleForm.host_ids[0] : '',
-          host_ids: ruleForm.host_ids || [],
+          host_id: ruleForm.metric_type === 'server_probe' ? '' : ((ruleForm.host_ids || []).length === 1 ? ruleForm.host_ids[0] : ''),
+          host_ids: ruleForm.metric_type === 'server_probe' ? [] : (ruleForm.host_ids || []),
+          server_probe_target_ids: ruleForm.metric_type === 'server_probe' ? (ruleForm.server_probe_target_ids || []) : [],
           mountpoint: ruleForm.metric_type === 'disk' ? (ruleForm.mountpoint || '') : '',
           service_port: ruleForm.metric_type === 'service_port' ? (ruleForm.service_port || 0) : 0,
           condition: !isNoThresholdMetric(ruleForm.metric_type || '') ? ruleForm.condition : '',
@@ -1307,6 +1356,7 @@ const resetRuleForm = () => {
     metric_type: 'cpu',
     host_id: '',
     host_ids: [],
+    server_probe_target_ids: [],
     mountpoint: '',
     service_port: undefined,
     condition: 'gte',
@@ -1529,9 +1579,15 @@ const getMetricTypeName = (type: string) => {
     network: '网络',
     host_down: '主机宕机',
     service_port: '服务端口',
+    server_probe: '服务端探测',
     gpu_unavailable: 'GPU不可用'
   }
   return map[type] || type
+}
+
+const getServerProbeTargetText = (target: ServerProbeTarget) => {
+  const endpoint = target.type === 'tcp' ? `${target.host}:${target.port}` : target.url
+  return `${target.name} (${target.type.toUpperCase()} ${endpoint})`
 }
 
 const getConditionName = (condition: string) => {
@@ -1702,6 +1758,17 @@ const loadAvailableServicePorts = async (hostId?: string) => {
   }
 }
 
+const loadServerProbeTargets = async () => {
+  try {
+    const res = await getServerProbeTargets()
+    if (res.code === 200 && res.data) {
+      serverProbeTargets.value = res.data
+    }
+  } catch (error: any) {
+    ElMessage.error('加载服务端探测目标失败: ' + (error.response?.data?.message || error.message))
+  }
+}
+
 // 处理主机ID变化
 const handleHostIdChange = () => {
   // 如果是服务端口类型的告警规则，根据主机ID重新加载端口列表
@@ -1712,10 +1779,12 @@ const handleHostIdChange = () => {
   }
 }
 
-// 监听指标类型变化，如果是服务端口类型，加载端口列表
+// 监听指标类型变化，加载对应的候选项
 watch(() => ruleForm.metric_type, (newType) => {
   if (newType === 'service_port') {
     loadAvailableServicePorts()
+  } else if (newType === 'server_probe') {
+    loadServerProbeTargets()
   }
 })
 
@@ -1723,6 +1792,7 @@ onMounted(() => {
   loadChannels()
   loadAgents()
   loadAvailableServicePorts()
+  loadServerProbeTargets()
   
   // 如果URL参数指定了tab，切换到对应tab
   if (route.query.tab === 'history') {
@@ -1751,4 +1821,5 @@ onMounted(() => {
   gap: 10px;
 }
 </style>
+
 
