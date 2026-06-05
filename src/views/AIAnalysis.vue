@@ -968,6 +968,7 @@ import { Search, Money, TrendCharts, QuestionFilled, Warning, Refresh, CircleChe
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 import { getAgents } from '@/api/agent'
+import { sortAgents } from '@/utils/agentSort'
 import { getCapacityPrediction, getCostOptimization, getLLMTaskStatus, streamCostOptimization, type CapacityPredictionResponse, type CostOptimizationResponse, type LLMTask } from '@/api/prediction'
 import { getHistoryMetrics } from '@/api/metrics'
 import { detectAnomalies, getAnomalyStatistics, resolveAnomalyEvent, getAnomalyEventDetail, streamAnomalyAnalysis, type AnomalyEvent, type AnomalyStatistics } from '@/api/anomaly'
@@ -1028,24 +1029,22 @@ const handleTabChange = (tabName: string) => {
 const loadAgents = async () => {
   try {
     const res = await getAgents({ page_size: 1000 }) as any
+    let loadedAgents: any[] = []
     // 处理分页响应格式
     if (res.data) {
       const data = res.data as any
       if (Array.isArray(data)) {
         // 直接是数组
-        agents.value = data
+        loadedAgents = data
       } else if (data.agents && Array.isArray(data.agents)) {
         // 分页响应格式：{ agents: [...], total: ... }
-        agents.value = data.agents
+        loadedAgents = data.agents
       } else if (data.data && Array.isArray(data.data)) {
         // 嵌套格式
-        agents.value = data.data
-      } else {
-        agents.value = []
+        loadedAgents = data.data
       }
-    } else {
-      agents.value = []
     }
+    agents.value = sortAgents(loadedAgents)
     console.log('Loaded agents:', agents.value.length, agents.value)
   } catch (error: any) {
     console.error('Failed to load agents:', error)

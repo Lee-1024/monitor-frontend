@@ -142,6 +142,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getAgents } from '@/api/agent'
+import { sortAgents } from '@/utils/agentSort'
 import {
   deleteOpsAssistantSession,
   streamOpsAssistant,
@@ -218,7 +219,7 @@ const loadAgents = async () => {
   try {
     const res: any = await getAgents({ page: 1, page_size: 100 })
     const data = res.data || res
-    agents.value = data.agents || data.data?.agents || []
+    agents.value = sortAgents(data.agents || data.data?.agents || [])
   } catch (error) {
     console.error('加载主机失败:', error)
   }

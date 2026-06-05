@@ -217,6 +217,7 @@ import { Warning, Clock, TrendCharts, CircleCheck } from '@element-plus/icons-vu
 import * as echarts from 'echarts'
 import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
+import { sortAgents } from '@/utils/agentSort'
 import type { Agent, ApiResponse, PaginatedResponse } from '@/types'
  
 interface CrashEvent {
@@ -284,7 +285,7 @@ const resolvedCount = computed(() => {
 const loadAgents = async () => {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<PaginatedResponse<Agent>>
-    agents.value = res.data?.agents || []
+    agents.value = sortAgents(res.data?.agents || [])
   } catch (error) {
     console.error('Failed to load agents:', error)
   }

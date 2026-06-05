@@ -181,6 +181,7 @@ import DiskIcon from '@/icons/DiskIcon.vue'
 import { getAgents, deleteAgent } from '@/api/agent'
 import { getLatestMetrics } from '@/api/metrics'
 import type { Agent, ApiResponse, PaginatedResponse, LatestMetrics } from '@/types'
+import { sortAgents } from '@/utils/agentSort'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -217,7 +218,7 @@ const fetchAgents = async () => {
       page: currentPage.value,
       page_size: pageSize.value
     }) as unknown as ApiResponse<PaginatedResponse<Agent>>
-    agents.value = res.data.agents || []
+    agents.value = sortAgents(res.data.agents || [])
     total.value = res.data.total || 0
     
     // 为在线主机获取磁盘信息

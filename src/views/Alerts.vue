@@ -727,6 +727,7 @@ import {
   type AlertSilence
 } from '@/api/alert'
 import { axios } from '@/utils/request'
+import { sortAgents } from '@/utils/agentSort'
 import type { Agent, ApiResponse } from '@/types'
 import { useAlertStore } from '@/stores/alert'
 import { useRoute, useRouter } from 'vue-router'
@@ -1023,7 +1024,7 @@ const handleHistorySelectionChange = (selection: AlertHistory[]) => {
 const loadAgents = async () => {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 1000 } }) as unknown as ApiResponse<{ agents: Agent[] }>
-    agents.value = res.data?.agents || []
+    agents.value = sortAgents(res.data?.agents || [])
   } catch (error) {
     console.error('Failed to load agents:', error)
   }

@@ -257,6 +257,7 @@ import {
 import { getOverview, getTopMetrics, getLatestMetrics } from '@/api/metrics'
 import { getAlertHistory as fetchAlertHistoryAPI } from '@/api/alert'
 import { axios } from '@/utils/request'
+import { sortAgents } from '@/utils/agentSort'
 
 // 兼容 getAlertHistory 的导入命名
 const getAlertHistory = (params: any) => fetchAlertHistoryAPI(params)
@@ -387,7 +388,7 @@ const fetchHostResources = async () => {
     const res = await axios.get('/v1/agents', { params: { page_size: 100 } }) as unknown as ApiResponse<any>
     
     if (res?.code === 200 && res?.data?.agents) {
-      const agents = res.data.agents
+      const agents = sortAgents(res.data.agents)
       
       // 获取每台主机最新指标
       const resourcePromises = agents.map(async (agent: any) => {
@@ -440,7 +441,7 @@ const fetchGPUHosts = async () => {
       return
     }
 
-    const hosts = await Promise.all(res.data.agents.map(async (agent: any) => {
+    const hosts = await Promise.all(sortAgents(res.data.agents).map(async (agent: any) => {
       try {
         const metricsRes = await getLatestMetrics(agent.host_id) as unknown as ApiResponse<any>
         const devices = metricsRes?.data?.gpu?.devices || []

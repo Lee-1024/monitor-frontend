@@ -86,6 +86,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
+import { sortAgents } from '@/utils/agentSort'
 import { getLatestMetrics, getOverview } from '@/api/metrics'
 import type { Agent, ApiResponse, GPUDeviceMetrics, Overview } from '@/types'
 
@@ -132,7 +133,7 @@ const summaryCards = computed(() => {
 
 async function loadAgents() {
   const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
-  agents.value = res.data?.agents || []
+  agents.value = sortAgents(res.data?.agents || [])
 }
 
 async function loadData() {

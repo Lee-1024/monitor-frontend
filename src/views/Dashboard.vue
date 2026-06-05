@@ -113,6 +113,7 @@ import { Grid as Server } from '@element-plus/icons-vue'
 import { getOverview, getTopMetrics } from '@/api/metrics'
 import { getAgents } from '@/api/agent'
 import type { Agent, ApiResponse, Overview, PaginatedResponse } from '@/types'
+import { sortAgents } from '@/utils/agentSort'
 import CPUTopChart from '@/components/CPUTopChart.vue'
 import MemoryTopChart from '@/components/MemoryTopChart.vue'
 import AgentTable from '@/components/AgentTable.vue'
@@ -185,7 +186,7 @@ const fetchOnlineAgents = async () => {
   try {
     loading.value = true
     const res = await getAgents({ status: 'online', page: 1, page_size: 10 }) as unknown as ApiResponse<PaginatedResponse<Agent>>
-    onlineAgents.value = res.data?.agents || []
+    onlineAgents.value = sortAgents(res.data?.agents || [])
   } catch (error) {
     console.error('Failed to fetch agents:', error)
     onlineAgents.value = []

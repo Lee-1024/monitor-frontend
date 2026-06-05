@@ -125,6 +125,7 @@ import { ElMessage } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { axios } from '@/utils/request'
+import { sortAgents } from '@/utils/agentSort'
 import type { Agent, ApiResponse } from '@/types'
 
 interface LogInfo {
@@ -184,7 +185,7 @@ const pagination = ref({
 const loadAgents = async () => {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
-    agents.value = res.data?.agents || []
+    agents.value = sortAgents(res.data?.agents || [])
   } catch (error) {
     console.error('Failed to load agents:', error)
   }
