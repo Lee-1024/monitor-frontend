@@ -23,7 +23,7 @@
 
           <el-table
             v-loading="channelsLoading"
-            :data="channels"
+            :data="pagedChannels"
             stripe
             style="width: 100%"
             empty-text="暂无数据"
@@ -62,6 +62,15 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-row">
+            <el-pagination
+              v-model:current-page="channelPagination.page"
+              v-model:page-size="channelPagination.pageSize"
+              :page-sizes="pageSizeOptions"
+              :total="channels.length"
+              layout="total, sizes, prev, pager, next, jumper"
+            />
+          </div>
         </el-tab-pane>
 
         <!-- 告警规则配置 -->
@@ -79,7 +88,7 @@
 
           <el-table
             v-loading="rulesLoading"
-            :data="rules"
+            :data="pagedRules"
             stripe
             style="width: 100%"
             empty-text="暂无数据"
@@ -129,6 +138,10 @@
                   <el-icon><Edit /></el-icon>
                   编辑
                 </el-button>
+                <el-button type="success" link @click="handleCopyRule(row)">
+                  <el-icon><DocumentCopy /></el-icon>
+                  复制
+                </el-button>
                 <el-button type="danger" link @click="handleDeleteRule(row)">
                   <el-icon><Delete /></el-icon>
                   删除
@@ -136,6 +149,15 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-row">
+            <el-pagination
+              v-model:current-page="rulePagination.page"
+              v-model:page-size="rulePagination.pageSize"
+              :page-sizes="pageSizeOptions"
+              :total="rules.length"
+              layout="total, sizes, prev, pager, next, jumper"
+            />
+          </div>
         </el-tab-pane>
 
         <!-- 告警静默配置 -->
@@ -153,7 +175,7 @@
 
           <el-table
             v-loading="silencesLoading"
-            :data="silences"
+            :data="pagedSilences"
             stripe
             style="width: 100%"
             empty-text="暂无数据"
@@ -191,6 +213,15 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-row">
+            <el-pagination
+              v-model:current-page="silencePagination.page"
+              v-model:page-size="silencePagination.pageSize"
+              :page-sizes="pageSizeOptions"
+              :total="silences.length"
+              layout="total, sizes, prev, pager, next, jumper"
+            />
+          </div>
         </el-tab-pane>
 
         <!-- 告警历史 -->
@@ -227,7 +258,7 @@
 
           <el-table
             v-loading="historyLoading"
-            :data="history"
+            :data="pagedHistory"
             stripe
             style="width: 100%"
             empty-text="暂无数据"
@@ -294,6 +325,15 @@
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination-row">
+            <el-pagination
+              v-model:current-page="historyPagination.page"
+              v-model:page-size="historyPagination.pageSize"
+              :page-sizes="pageSizeOptions"
+              :total="history.length"
+              layout="total, sizes, prev, pager, next, jumper"
+            />
+          </div>
         </el-tab-pane>
       </el-tabs>
     </el-card>
@@ -702,7 +742,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Refresh, Edit, Delete } from '@element-plus/icons-vue'
+import { Plus, Refresh, Edit, Delete, DocumentCopy } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import {
   getNotificationChannels,
@@ -740,10 +780,21 @@ const alertStore = useAlertStore()
 
 // 从路由参数获取tab，如果没有则默认为channels
 const activeTab = ref((route.query.tab as string) || 'channels')
+const pageSizeOptions = [10, 20, 50]
+const createPagination = () => reactive({
+  page: 1,
+  pageSize: 10
+})
+
+const paginateRows = <T>(rows: T[], page: number, pageSize: number) => {
+  const start = (page - 1) * pageSize
+  return rows.slice(start, start + pageSize)
+}
 
 // 通知渠道相关
 const channelsLoading = ref(false)
 const channels = ref<NotificationChannel[]>([])
+const channelPagination = createPagination()
 const channelDialogVisible = ref(false)
 const channelDialogTitle = computed(() => isEditChannel.value ? '编辑通知渠道' : '新增通知渠道')
 const isEditChannel = ref(false)
@@ -766,6 +817,7 @@ const channelFormRules: FormRules = {
 // 告警规则相关
 const rulesLoading = ref(false)
 const rules = ref<AlertRule[]>([])
+const rulePagination = createPagination()
 const ruleDialogVisible = ref(false)
 const ruleDialogTitle = computed(() => isEditRule.value ? '编辑告警规则' : '新增告警规则')
 const isEditRule = ref(false)
@@ -863,6 +915,7 @@ const ruleFormRules: FormRules = {
 // 告警静默相关
 const silencesLoading = ref(false)
 const silences = ref<AlertSilence[]>([])
+const silencePagination = createPagination()
 const silenceDialogVisible = ref(false)
 const silenceDialogTitle = computed(() => isEditSilence.value ? '编辑告警静默' : '新增告警静默')
 const isEditSilence = ref(false)
@@ -888,6 +941,7 @@ const silenceFormRules: FormRules = {
 // 告警历史相关
 const historyLoading = ref(false)
 const history = ref<AlertHistory[]>([])
+const historyPagination = createPagination()
 const selectedHistoryIds = ref<number[]>([])
 const historyFilter = reactive({
   host_id: '',
@@ -899,6 +953,10 @@ const agents = ref<Agent[]>([])
 
 // 启用的通知渠道
 const enabledChannels = computed(() => channels.value.filter(c => c.enabled))
+const pagedChannels = computed(() => paginateRows(channels.value, channelPagination.page, channelPagination.pageSize))
+const pagedRules = computed(() => paginateRows(rules.value, rulePagination.page, rulePagination.pageSize))
+const pagedSilences = computed(() => paginateRows(silences.value, silencePagination.page, silencePagination.pageSize))
+const pagedHistory = computed(() => paginateRows(history.value, historyPagination.page, historyPagination.pageSize))
 
 // 加载数据
 const loadChannels = async () => {
@@ -907,6 +965,7 @@ const loadChannels = async () => {
     const res = await getNotificationChannels()
     if (res.code === 200 && res.data) {
       channels.value = res.data
+      channelPagination.page = 1
     }
   } catch (error: any) {
     ElMessage.error('加载通知渠道失败: ' + (error.response?.data?.message || error.message))
@@ -921,6 +980,7 @@ const loadRules = async () => {
     const res = await getAlertRules()
     if (res.code === 200 && res.data) {
       rules.value = res.data
+      rulePagination.page = 1
     }
   } catch (error: any) {
     ElMessage.error('加载告警规则失败: ' + (error.response?.data?.message || error.message))
@@ -935,6 +995,7 @@ const loadSilences = async () => {
     const res = await getAlertSilences()
     if (res.code === 200 && res.data) {
       silences.value = res.data
+      silencePagination.page = 1
     }
   } catch (error: any) {
     ElMessage.error('加载告警静默失败: ' + (error.response?.data?.message || error.message))
@@ -946,7 +1007,7 @@ const loadSilences = async () => {
 const loadHistory = async () => {
   try {
     historyLoading.value = true
-    const params: any = { limit: 100 }
+    const params: any = { limit: 1000 }
     if (historyFilter.host_id) {
       params.host_id = historyFilter.host_id
     }
@@ -956,6 +1017,7 @@ const loadHistory = async () => {
     const res = await getAlertHistory(params)
     if (res.code === 200 && res.data) {
       history.value = res.data
+      historyPagination.page = 1
     }
   } catch (error: any) {
     ElMessage.error('加载告警历史失败: ' + (error.response?.data?.message || error.message))
@@ -1224,8 +1286,7 @@ const handleCreateRule = () => {
   ruleDialogVisible.value = true
 }
 
-const handleEditRule = (rule: AlertRule) => {
-  isEditRule.value = true
+const fillRuleFormFromRule = (rule: AlertRule, overrides: Partial<typeof ruleForm> = {}) => {
   Object.assign(ruleForm, {
     id: rule.id,
     name: rule.name,
@@ -1245,16 +1306,35 @@ const handleEditRule = (rule: AlertRule) => {
     notify_channels: Array.isArray(rule.notify_channels) ? rule.notify_channels : [],
     receivers: Array.isArray(rule.receivers) ? rule.receivers : [],
     enabled: rule.enabled,
-    receiversStr: Array.isArray(rule.receivers) ? rule.receivers.join(',') : ''
+    receiversStr: Array.isArray(rule.receivers) ? rule.receivers.join(',') : '',
+    ...overrides
   })
-  
+}
+
+const loadRuleAuxiliaryOptions = (metricType?: string) => {
   // 如果是服务端口类型，加载端口列表（根据编辑的主机ID）
-  if (rule.metric_type === 'service_port') {
+  if (metricType === 'service_port') {
     loadAvailableServicePorts()
   }
-  if (rule.metric_type === 'server_probe') {
+  if (metricType === 'server_probe') {
     loadServerProbeTargets()
   }
+}
+
+const handleEditRule = (rule: AlertRule) => {
+  isEditRule.value = true
+  fillRuleFormFromRule(rule)
+  loadRuleAuxiliaryOptions(rule.metric_type)
+  ruleDialogVisible.value = true
+}
+
+const handleCopyRule = (rule: AlertRule) => {
+  isEditRule.value = false
+  fillRuleFormFromRule(rule, {
+    id: undefined,
+    name: `${rule.name} - 副本`
+  })
+  loadRuleAuxiliaryOptions(rule.metric_type)
   ruleDialogVisible.value = true
 }
 
@@ -1820,6 +1900,12 @@ onMounted(() => {
   margin-bottom: 20px;
   display: flex;
   gap: 10px;
+}
+
+.pagination-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
 }
 </style>
 
