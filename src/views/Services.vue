@@ -29,13 +29,14 @@
         <el-tab-pane label="Agent服务状态" name="agent">
           <el-table
             v-loading="loading"
-            :data="services"
+            :data="pagedServices"
             stripe
+            table-layout="auto"
             style="width: 100%"
             empty-text="暂无数据"
           >
-            <el-table-column prop="host_id" label="主机ID" width="150" />
-            <el-table-column prop="name" label="服务名称" width="200" />
+            <el-table-column prop="host_id" label="主机ID" min-width="170" show-overflow-tooltip />
+            <el-table-column prop="name" label="服务名称" min-width="200" show-overflow-tooltip />
             <el-table-column label="端口" width="100">
               <template #default="{ row }">
                 <span v-if="row.port">{{ row.port }}</span>
@@ -57,25 +58,24 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="开机自启" width="100">
-              <template #default="{ row }">
-                <el-tag :type="row.enabled ? 'success' : 'info'">
-                  {{ row.enabled ? '是' : '否' }}
-                </el-tag>
-              </template>
-            </el-table-column>
             <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-            <el-table-column label="运行时长" width="150">
-              <template #default="{ row }">
-                {{ formatUptime(row.uptime_seconds) }}
-              </template>
-            </el-table-column>
             <el-table-column label="更新时间" width="180">
               <template #default="{ row }">
                 {{ dayjs(row.timestamp).format('YYYY-MM-DD HH:mm:ss') }}
               </template>
             </el-table-column>
           </el-table>
+          <div class="pagination">
+            <el-pagination
+              v-model:current-page="serviceCurrentPage"
+              v-model:page-size="servicePageSize"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="services.length"
+              layout="total, sizes, prev, pager, next, jumper"
+              @size-change="handleServiceSizeChange"
+              @current-change="handleServiceCurrentChange"
+            />
+          </div>
         </el-tab-pane>
 
         <el-tab-pane label="服务端探测" name="server">
@@ -171,7 +171,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -206,6 +206,8 @@ const activeTab = ref('agent')
 const selectedHost = ref('')
 const agents = ref<Agent[]>([])
 const services = ref<ServiceInfo[]>([])
+const serviceCurrentPage = ref(1)
+const servicePageSize = ref(20)
 const probeLoading = ref(false)
 const probeSaving = ref(false)
 const probeDialogVisible = ref(false)
@@ -224,6 +226,11 @@ const probeForm = ref<Partial<ServerProbeTarget>>({
   description: ''
 })
 
+const pagedServices = computed(() => {
+  const start = (serviceCurrentPage.value - 1) * servicePageSize.value
+  return services.value.slice(start, start + servicePageSize.value)
+})
+
 const loadAgents = async () => {
   try {
     const res = await axios.get('/v1/agents', { params: { page: 1, page_size: 100 } }) as unknown as ApiResponse<{ agents: Agent[] }>
@@ -236,6 +243,7 @@ const loadAgents = async () => {
 const loadServices = async () => {
   try {
     loading.value = true
+    serviceCurrentPage.value = 1
     const params: any = {}
     if (selectedHost.value) {
       params.host_id = selectedHost.value
@@ -248,6 +256,14 @@ const loadServices = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleServiceSizeChange = () => {
+  serviceCurrentPage.value = 1
+}
+
+const handleServiceCurrentChange = () => {
+  // current page is already synced by el-pagination
 }
 
 const loadProbeTargets = async () => {
@@ -315,21 +331,6 @@ const getStatusText = (status: string) => {
     unknown: '未知'
   }
   return statusMap[status] || status
-}
-
-const formatUptime = (seconds: number) => {
-  if (seconds <= 0) return '-'
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor((seconds % 86400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  
-  if (days > 0) {
-    return `${days}天${hours}小时${minutes}分钟`
-  } else if (hours > 0) {
-    return `${hours}小时${minutes}分钟`
-  } else {
-    return `${minutes}分钟`
-  }
 }
 
 const openProbeDialog = (target?: ServerProbeTarget) => {
@@ -437,6 +438,35 @@ onMounted(() => {
   display: flex;
   gap: 10px;
   margin-bottom: 12px;
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 768px) {
+  .services-container {
+    padding: 10px;
+  }
+
+  .card-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header-actions {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .pagination {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
 }
 </style>
 

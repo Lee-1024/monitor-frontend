@@ -29,7 +29,26 @@
         </div>
       </template>
 
-      <el-table :data="filteredAgents" v-loading="loading" style="width: 100%">
+      <div class="agent-summary">
+        <div class="summary-item">
+          <span class="summary-label">总主机</span>
+          <strong>{{ total }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">本页在线</span>
+          <strong class="online">{{ pageOnlineCount }}</strong>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">本页离线</span>
+          <strong class="offline">{{ pageOfflineCount }}</strong>
+        </div>
+        <div class="summary-item summary-filter">
+          <span class="summary-label">当前筛选</span>
+          <strong>{{ currentFilterText }}</strong>
+        </div>
+      </div>
+
+      <el-table :data="filteredAgents" v-loading="loading" table-layout="auto" style="width: 100%">
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="expand-content">
@@ -97,9 +116,9 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="host_id" label="主机ID" width="180" show-overflow-tooltip />
-        <el-table-column prop="hostname" label="主机名" width="200" />
-        <el-table-column prop="ip" label="IP地址" width="150" />
+        <el-table-column prop="host_id" label="主机ID" min-width="190" show-overflow-tooltip />
+        <el-table-column prop="hostname" label="主机名" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="ip" label="IP地址" min-width="150" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 'online' ? 'success' : 'danger'">
@@ -108,7 +127,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="os" label="操作系统" width="120">
+        <el-table-column prop="os" label="操作系统" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             <el-icon v-if="row.os === 'linux'" color="#409EFF"><Monitor /></el-icon>
             <el-icon v-else-if="row.os === 'darwin'" color="#606266"><Monitor /></el-icon>
@@ -116,22 +135,24 @@
             {{ row.os }}
           </template>
         </el-table-column>
-        <el-table-column label="最后上报" width="180">
+        <el-table-column label="最后上报" min-width="180">
           <template #default="{ row }">
             {{ dayjs(row.last_seen).format('YYYY-MM-DD HH:mm:ss') }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" fixed="right" width="260">
+        <el-table-column label="操作" fixed="right" width="230" align="center">
           <template #default="{ row }">
-            <el-button type="primary" size="small" @click="viewDetail(row.host_id)">
-              详情
-            </el-button>
-            <el-button type="success" size="small" @click="viewHistory(row.host_id)">
-              历史
-            </el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">
-              删除
-            </el-button>
+            <div class="table-actions">
+              <el-button type="primary" size="small" @click="viewDetail(row.host_id)">
+                详情
+              </el-button>
+              <el-button type="success" size="small" @click="viewHistory(row.host_id)">
+                历史
+              </el-button>
+              <el-button type="danger" size="small" @click="handleDelete(row)">
+                删除
+              </el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -170,6 +191,13 @@ const statusFilter = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+
+const pageOnlineCount = computed(() => filteredAgents.value.filter((agent: Agent) => agent.status === 'online').length)
+const pageOfflineCount = computed(() => filteredAgents.value.filter((agent: Agent) => agent.status === 'offline').length)
+const currentFilterText = computed(() => {
+  const statusText = statusFilter.value === 'online' ? '在线' : statusFilter.value === 'offline' ? '离线' : '全部状态'
+  return searchText.value ? `${statusText} / ${searchText.value}` : statusText
+})
 
 const filteredAgents = computed(() => {
   if (!searchText.value) {
@@ -305,6 +333,62 @@ onMounted(() => {
   align-items: center;
 }
 
+.agent-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.summary-item {
+  min-height: 54px;
+  padding: 10px 14px;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.summary-label {
+  color: #909399;
+  font-size: 13px;
+}
+
+.summary-item strong {
+  color: #303133;
+  font-size: 18px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.summary-item .online {
+  color: #67c23a;
+}
+
+.summary-item .offline {
+  color: #f56c6c;
+}
+
+.summary-filter {
+  grid-column: span 1;
+}
+
+.table-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.table-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+
 .expand-content {
   padding: 20px;
 }
@@ -336,6 +420,11 @@ onMounted(() => {
   .header-actions {
     flex-direction: column;
     gap: 10px;
+    align-items: stretch;
+  }
+
+  .agent-summary {
+    grid-template-columns: 1fr;
   }
 }
 </style>

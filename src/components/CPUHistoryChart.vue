@@ -31,7 +31,8 @@ const updateChart = () => {
   if (!chart) return
   
   const times = props.data.map(item => formatMetricTimestamp(item.timestamp, props.data))
-  const cpuUsage = props.data.map(item => item.values.usage_percent || 0)
+  const cpuAvgUsage = props.data.map(item => item.values.usage_percent || 0)
+  const cpuMaxUsage = props.data.map(item => item.values.usage_percent_max ?? item.values.usage_percent ?? 0)
   const loadAvg = props.data.map(item => item.values.load_avg_1 || 0)
   
   const option = {
@@ -50,7 +51,7 @@ const updateChart = () => {
           const numValue = typeof value === 'number' ? value : parseFloat(value) || 0
           const seriesName = item.seriesName || ''
           
-          if (seriesName === 'CPU使用率') {
+          if (seriesName === 'CPU平均值' || seriesName === 'CPU峰值') {
             // CPU使用率显示为百分比，保留两位小数
             result += `${item.marker || '●'} ${seriesName}: <strong>${numValue.toFixed(2)}%</strong><br/>`
           } else if (seriesName === '负载平均值') {
@@ -64,7 +65,7 @@ const updateChart = () => {
       }
     },
     legend: {
-      data: ['CPU使用率', '负载平均值'],
+      data: ['CPU平均值', 'CPU峰值', '负载平均值'],
       top: 10,
       left: 'center',
       textStyle: {
@@ -112,10 +113,10 @@ const updateChart = () => {
     ],
     series: [
       {
-        name: 'CPU使用率',
+        name: 'CPU平均值',
         type: 'line',
         smooth: true,
-        data: cpuUsage,
+        data: cpuAvgUsage,
         yAxisIndex: 0,
         itemStyle: {
           color: '#409EFF'
@@ -125,6 +126,19 @@ const updateChart = () => {
             { offset: 0, color: 'rgba(64, 158, 255, 0.5)' },
             { offset: 1, color: 'rgba(64, 158, 255, 0.1)' }
           ])
+        }
+      },
+      {
+        name: 'CPU峰值',
+        type: 'line',
+        smooth: true,
+        data: cpuMaxUsage,
+        yAxisIndex: 0,
+        itemStyle: {
+          color: '#F56C6C'
+        },
+        lineStyle: {
+          width: 2
         }
       },
       {
