@@ -118,26 +118,30 @@
             </div>
           </div>
 
-          <div class="gpu-host-list" v-if="gpuHosts.length > 0">
-            <div v-for="host in gpuHosts" :key="host.host_id" class="gpu-host-item">
-              <div class="gpu-host-header">
-                <div class="gpu-host-name">{{ host.hostname || host.host_id }}</div>
-                <div class="gpu-host-count">{{ host.devices.length }} 张</div>
-              </div>
-              <div class="gpu-device-list">
-                <div v-for="device in host.devices" :key="device.uuid || `${host.host_id}-${device.index}`" class="gpu-device-item">
-                  <div class="gpu-device-title">
-                    <span>{{ device.name || `GPU ${device.index}` }}</span>
-                    <span>{{ (device.memory_used_percent || 0).toFixed(1) }}%</span>
+          <div class="auto-scroll-viewport gpu-host-list" v-if="gpuHosts.length > 0">
+            <div class="auto-scroll-track gpu-scroll-track">
+              <template v-for="loop in 2" :key="`gpu-loop-${loop}`">
+                <div v-for="host in gpuHosts" :key="`${loop}-${host.host_id}`" class="gpu-host-item">
+                  <div class="gpu-host-header">
+                    <div class="gpu-host-name">{{ host.hostname || host.host_id }}</div>
+                    <div class="gpu-host-count">{{ host.devices.length }} 张</div>
                   </div>
-                  <div class="gpu-memory-row">
-                    <div class="gpu-memory-bar">
-                      <div class="gpu-memory-fill" :style="{ width: Math.min(device.memory_used_percent || 0, 100) + '%' }"></div>
+                  <div class="gpu-device-list">
+                    <div v-for="device in host.devices" :key="`${loop}-${device.uuid || `${host.host_id}-${device.index}`}`" class="gpu-device-item">
+                      <div class="gpu-device-title">
+                        <span>{{ device.name || `GPU ${device.index}` }}</span>
+                        <span>{{ (device.memory_used_percent || 0).toFixed(1) }}%</span>
+                      </div>
+                      <div class="gpu-memory-row">
+                        <div class="gpu-memory-bar">
+                          <div class="gpu-memory-fill" :style="{ width: Math.min(device.memory_used_percent || 0, 100) + '%' }"></div>
+                        </div>
+                        <div class="gpu-memory-text">{{ formatBytes(device.memory_used) }} / {{ formatBytes(device.memory_total) }}</div>
+                      </div>
                     </div>
-                    <div class="gpu-memory-text">{{ formatBytes(device.memory_used) }} / {{ formatBytes(device.memory_total) }}</div>
                   </div>
                 </div>
-              </div>
+              </template>
             </div>
           </div>
           <div v-else class="empty-data">暂无GPU数据</div>
@@ -150,16 +154,20 @@
             <el-icon class="panel-icon"><Bell /></el-icon>
             <span class="panel-title">实时告警</span>
           </div>
-          <div class="alert-list" v-if="recentAlerts.length > 0">
-            <div v-for="alert in recentAlerts" :key="alert.id" class="alert-item-row" :class="alert.severity">
-              <el-icon class="alert-severity-icon">
-                <component :is="getAlertSeverityIcon(alert.severity)" />
-              </el-icon>
-              <div class="alert-content">
-                <div class="alert-rule">{{ alert.rule_name }}</div>
-                <div class="alert-host">{{ alert.hostname }}</div>
-                <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
-              </div>
+          <div class="auto-scroll-viewport alert-list" v-if="recentAlerts.length > 0">
+            <div class="auto-scroll-track">
+              <template v-for="loop in 2" :key="`alert-loop-${loop}`">
+                <div v-for="alert in recentAlerts" :key="`${loop}-${alert.id}`" class="alert-item-row" :class="alert.severity">
+                  <el-icon class="alert-severity-icon">
+                    <component :is="getAlertSeverityIcon(alert.severity)" />
+                  </el-icon>
+                  <div class="alert-content">
+                    <div class="alert-rule">{{ alert.rule_name }}</div>
+                    <div class="alert-host">{{ alert.hostname }}</div>
+                    <div class="alert-time">{{ formatTime(alert.fired_at) }}</div>
+                  </div>
+                </div>
+              </template>
             </div>
           </div>
           <div v-else class="empty-data">暂无告警</div>
@@ -170,31 +178,35 @@
             <el-icon class="panel-icon"><TrendCharts /></el-icon>
             <span class="panel-title">主机资源 Top 5</span>
           </div>
-          <div class="host-resource-list" v-if="hostResources.length > 0">
-            <div v-for="(host, index) in hostResources" :key="host.host_id" class="host-resource-item">
-              <div class="resource-rank">{{ index + 1 }}</div>
-              <div class="resource-info">
-                <div class="host-name">
-                  <el-icon class="host-icon"><Monitor /></el-icon>
-                  <span class="host-text">{{ host.hostname || host.host_id }}</span>
-                </div>
-                <div class="resource-bars">
-                  <div class="resource-bar-item">
-                    <span class="bar-label">CPU</span>
-                    <div class="resource-bar-wrapper">
-                      <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
+          <div class="auto-scroll-viewport host-resource-list" v-if="hostResources.length > 0">
+            <div class="auto-scroll-track">
+              <template v-for="loop in 2" :key="`host-loop-${loop}`">
+                <div v-for="(host, index) in hostResources" :key="`${loop}-${host.host_id}`" class="host-resource-item">
+                  <div class="resource-rank">{{ index + 1 }}</div>
+                  <div class="resource-info">
+                    <div class="host-name">
+                      <el-icon class="host-icon"><Monitor /></el-icon>
+                      <span class="host-text">{{ host.hostname || host.host_id }}</span>
                     </div>
-                    <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
-                  </div>
-                  <div class="resource-bar-item">
-                    <span class="bar-label">内存</span>
-                    <div class="resource-bar-wrapper">
-                      <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
+                    <div class="resource-bars">
+                      <div class="resource-bar-item">
+                        <span class="bar-label">CPU</span>
+                        <div class="resource-bar-wrapper">
+                          <div class="resource-bar cpu-bar" :style="{ width: Math.min(host.cpu_usage, 100) + '%' }"></div>
+                        </div>
+                        <span class="bar-value cpu-value">{{ host.cpu_usage.toFixed(1) }}%</span>
+                      </div>
+                      <div class="resource-bar-item">
+                        <span class="bar-label">内存</span>
+                        <div class="resource-bar-wrapper">
+                          <div class="resource-bar memory-bar" :style="{ width: Math.min(host.memory_usage, 100) + '%' }"></div>
+                        </div>
+                        <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
+                      </div>
                     </div>
-                    <span class="bar-value memory-value">{{ host.memory_usage.toFixed(1) }}%</span>
                   </div>
                 </div>
-              </div>
+              </template>
             </div>
           </div>
           <div v-else class="empty-data">暂无数据</div>
@@ -202,25 +214,21 @@
 
         <div class="panel-box list-panel">
           <div class="panel-header">
-            <el-icon class="panel-icon"><Folder /></el-icon>
-            <span class="panel-title">磁盘告警</span>
+            <el-icon class="panel-icon"><Document /></el-icon>
+            <span class="panel-title">今日巡检日报</span>
           </div>
-          <div class="disk-alert-list" v-if="diskAlerts.length > 0">
-            <div v-for="(alert, index) in diskAlerts" :key="alert.host_id + index" class="disk-alert-item">
-              <div class="alert-rank">{{ index + 1 }}</div>
-              <div class="alert-info">
-                <div class="alert-host">
-                  <el-icon class="host-icon"><Monitor /></el-icon>
-                  <span>{{ alert.hostname || alert.host_id }}</span>
+          <div class="auto-scroll-viewport inspection-report-list" v-if="todayInspectionReport">
+            <div class="auto-scroll-track report-scroll-track">
+              <template v-for="loop in 2" :key="`report-loop-${loop}`">
+                <div class="inspection-report-meta">
+                  <span>{{ formatDate(todayInspectionReport.date) }}</span>
+                  <span>{{ todayInspectionReport.generated_by || 'system' }}</span>
                 </div>
-                <div class="alert-mountpoint">{{ alert.mountpoint }}</div>
-              </div>
-              <div class="alert-usage" :class="getDiskAlertClass(alert.disk_usage)">
-                {{ alert.disk_usage.toFixed(1) }}%
-              </div>
+                <div class="inspection-report-content">{{ todayInspectionReportText }}</div>
+              </template>
             </div>
           </div>
-          <div v-else class="empty-data">暂无数据</div>
+          <div v-else class="empty-data">暂无今日巡检日报</div>
         </div>
       </section>
     </div>
@@ -246,7 +254,7 @@ import {
   Close,
   Cpu,
   DataLine,
-  Folder,
+  Document,
   FullScreen,
   InfoFilled,
   Memo,
@@ -256,6 +264,7 @@ import {
 } from '@element-plus/icons-vue'
 import { getOverview, getTopMetrics, getLatestMetrics } from '@/api/metrics'
 import { getAlertHistory as fetchAlertHistoryAPI } from '@/api/alert'
+import { listInspectionReports, getInspectionReport } from '@/api/inspection'
 import { axios } from '@/utils/request'
 import { sortAgents } from '@/utils/agentSort'
 
@@ -263,6 +272,7 @@ import { sortAgents } from '@/utils/agentSort'
 const getAlertHistory = (params: any) => fetchAlertHistoryAPI(params)
 import type { ApiResponse, Overview } from '@/types'
 import type { AlertHistory } from '@/api/alert'
+import type { InspectionReport } from '@/api/inspection'
 import dayjs from 'dayjs'
 
 const currentTime = ref(dayjs().format('YYYY-MM-DD HH:mm:ss'))
@@ -285,8 +295,8 @@ const alertStats = ref({
 
 const recentAlerts = ref<AlertHistory[]>([])
 const hostResources = ref<any[]>([])
-const diskAlerts = ref<any[]>([])
 const gpuHosts = ref<any[]>([])
+const todayInspectionReport = ref<InspectionReport | null>(null)
 const streamData = ref<Array<{ label: string; value: string }>>([])
 
 const cpuChartRef = ref<HTMLElement>()
@@ -295,6 +305,8 @@ const bigScreenContainer = ref<HTMLElement>()
 let cpuChart: echarts.ECharts | null = null
 let memoryChart: echarts.ECharts | null = null
 let refreshTimer: any = null
+let reportRefreshTimer: any = null
+let timeTimer: any = null
 const isFullscreen = ref(false)
 
 const gpuSummary = computed(() => {
@@ -309,6 +321,20 @@ const gpuSummary = computed(() => {
   }
 })
 
+const todayInspectionReportText = computed(() => {
+  const report = todayInspectionReport.value
+  if (!report) return ''
+
+  return [
+    report.report_content,
+    report.summary,
+    report.key_findings,
+    report.recommendations
+  ]
+    .filter((part) => typeof part === 'string' && part.trim().length > 0)
+    .join('\n\n')
+})
+
 const getAlertSeverityIcon = (severity: string) => {
   if (severity === 'critical') return CircleCloseFilled
   if (severity === 'warning') return WarningFilled
@@ -318,6 +344,10 @@ const getAlertSeverityIcon = (severity: string) => {
 // 格式化时间
 const formatTime = (time: string) => {
   return dayjs(time).format('MM-DD HH:mm')
+}
+
+const formatDate = (date: string) => {
+  return dayjs(date).format('YYYY-MM-DD')
 }
 
 const formatBytes = (bytes: number) => {
@@ -473,42 +503,27 @@ const fetchGPUHosts = async () => {
   }
 }
 
-// 获取磁盘告警
-const fetchDiskAlerts = async () => {
+const fetchTodayInspectionReport = async () => {
   try {
-    // 获取当前 firing 状态的告警
-    const res = await getAlertHistory({ status: 'firing', limit: 100 }) as unknown as ApiResponse<any[]>
-    
-    if (res?.code === 200 && res?.data) {
-      // 筛选磁盘告警
-      const diskAlertsData = res.data.filter((alert: any) => {
-        return alert.metric_type === 'disk' && alert.status === 'firing'
-      })
-      
-      // 转换磁盘告警数据
-      diskAlerts.value = diskAlertsData.slice(0, 5).map((alert: any) => ({
-        host_id: alert.host_id,
-        hostname: alert.hostname,
-        mountpoint: alert.labels?.mountpoint || '/',
-        disk_usage: alert.metric_value,
-        severity: alert.severity,
-        message: alert.message
-      }))
-    } else {
-      diskAlerts.value = []
-    }
-  } catch (error) {
-    console.error('Failed to fetch disk alerts:', error)
-    diskAlerts.value = []
-  }
-}
+    const today = dayjs().format('YYYY-MM-DD')
+    const res = await listInspectionReports({ page: 1, page_size: 20 }) as unknown as ApiResponse<any>
+    const items = res?.data?.items || []
+    const todayReports = items
+      .filter((report: InspectionReport) => dayjs(report.date).format('YYYY-MM-DD') === today)
+      .sort((a: InspectionReport, b: InspectionReport) => dayjs(b.created_at).valueOf() - dayjs(a.created_at).valueOf())
 
-// 获取磁盘告警等级样式
-const getDiskAlertClass = (usage: number) => {
-  if (usage >= 90) return 'disk-critical'
-  if (usage >= 85) return 'disk-warning'
-  if (usage >= 70) return 'disk-info'
-  return ''
+    if (todayReports.length === 0) {
+      todayInspectionReport.value = null
+      return
+    }
+
+    const latest = todayReports[0]
+    const detailRes = await getInspectionReport(latest.id) as unknown as ApiResponse<InspectionReport>
+    todayInspectionReport.value = detailRes?.data || latest
+  } catch (error) {
+    console.error('Failed to fetch today inspection report:', error)
+    todayInspectionReport.value = null
+  }
 }
 
 // 更新CPU图表
@@ -637,8 +652,7 @@ const refreshData = async () => {
     fetchAlerts(),
     fetchTopMetrics(),
     fetchHostResources(),
-    fetchGPUHosts(),
-    fetchDiskAlerts()
+    fetchGPUHosts()
   ])
   updateStreamData()
 }
@@ -749,6 +763,7 @@ onMounted(async () => {
   
   await initCharts()
   await refreshData()
+  await fetchTodayInspectionReport()
   
   // 监听全屏状态变化
   document.addEventListener('fullscreenchange', handleFullscreenChange)
@@ -760,15 +775,25 @@ onMounted(async () => {
   refreshTimer = setInterval(() => {
     refreshData()
   }, 30000)
+
+  reportRefreshTimer = setInterval(() => {
+    fetchTodayInspectionReport()
+  }, 10 * 60 * 1000)
   
   // 更新时间
-  setInterval(updateTime, 1000)
+  timeTimer = setInterval(updateTime, 1000)
   
 })
 
 onUnmounted(() => {
   if (refreshTimer) {
     clearInterval(refreshTimer)
+  }
+  if (reportRefreshTimer) {
+    clearInterval(reportRefreshTimer)
+  }
+  if (timeTimer) {
+    clearInterval(timeTimer)
   }
   if (cpuChart) {
     cpuChart.dispose()
@@ -1198,22 +1223,69 @@ onUnmounted(() => {
 .gpu-host-list,
 .alert-list,
 .host-resource-list,
-.disk-alert-list {
+.inspection-report-list {
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
   padding-right: 4px;
 }
 
 .gpu-host-list {
+  flex: 1;
+}
+
+.auto-scroll-viewport {
+  position: relative;
+  flex: 1;
+}
+
+.auto-scroll-viewport::before,
+.auto-scroll-viewport::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 4px;
+  height: 18px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.auto-scroll-viewport::before {
+  top: 0;
+  background: linear-gradient(180deg, rgba(11, 18, 42, 0.95), transparent);
+}
+
+.auto-scroll-viewport::after {
+  bottom: 0;
+  background: linear-gradient(0deg, rgba(11, 18, 42, 0.95), transparent);
+}
+
+.auto-scroll-track {
   display: flex;
   flex-direction: column;
+  gap: 8px;
+  animation: vertical-scroll 36s linear infinite;
+  will-change: transform;
+}
+
+.gpu-scroll-track,
+.report-scroll-track {
   gap: 9px;
+  animation-duration: 80s;
+}
+
+.auto-scroll-viewport:hover .auto-scroll-track {
+  animation-play-state: paused;
+}
+
+@keyframes vertical-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
 }
 
 .gpu-host-item,
 .host-resource-item,
 .alert-item-row,
-.disk-alert-item {
+.inspection-report-meta {
   border-radius: 6px;
   background: rgba(0, 212, 255, 0.055);
   border: 1px solid rgba(0, 212, 255, 0.12);
@@ -1317,10 +1389,8 @@ onUnmounted(() => {
 
 .alert-list,
 .host-resource-list,
-.disk-alert-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.inspection-report-list {
+  display: block;
 }
 
 .alert-item-row {
@@ -1374,7 +1444,7 @@ onUnmounted(() => {
 }
 
 .resource-rank,
-.alert-rank {
+.report-badge {
   width: 24px;
   height: 24px;
   display: flex;
@@ -1389,11 +1459,6 @@ onUnmounted(() => {
 .resource-rank {
   color: #00d4ff;
   background: rgba(0, 212, 255, 0.18);
-}
-
-.alert-rank {
-  color: #ffa502;
-  background: rgba(255, 165, 2, 0.18);
 }
 
 .host-name,
@@ -1458,43 +1523,27 @@ onUnmounted(() => {
 .cpu-value { color: #00d4ff; }
 .memory-value { color: #00ff88; }
 
-.disk-alert-item {
+.inspection-report-meta {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
-  padding: 9px;
+  gap: 10px;
+  padding: 8px 9px;
   border-color: rgba(255, 165, 2, 0.14);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 11px;
 }
 
-.alert-host span:last-child,
-.alert-mountpoint {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.alert-usage {
+.inspection-report-content {
+  white-space: pre-wrap;
+  line-height: 1.65;
   font-size: 12px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.disk-critical {
-  color: #ff4757;
-  background: rgba(255, 71, 87, 0.18);
-}
-
-.disk-warning {
-  color: #ffa502;
-  background: rgba(255, 165, 2, 0.18);
-}
-
-.disk-info {
   color: #00d4ff;
-  background: rgba(0, 212, 255, 0.18);
+  background: rgba(0, 212, 255, 0.045);
+  border: 1px solid rgba(0, 212, 255, 0.12);
+  border-radius: 6px;
+  padding: 10px;
+  text-shadow: 0 0 8px rgba(0, 212, 255, 0.22);
 }
 
 .empty-data {
@@ -1508,14 +1557,14 @@ onUnmounted(() => {
 .gpu-host-list::-webkit-scrollbar,
 .alert-list::-webkit-scrollbar,
 .host-resource-list::-webkit-scrollbar,
-.disk-alert-list::-webkit-scrollbar {
+.inspection-report-list::-webkit-scrollbar {
   width: 4px;
 }
 
 .gpu-host-list::-webkit-scrollbar-thumb,
 .alert-list::-webkit-scrollbar-thumb,
 .host-resource-list::-webkit-scrollbar-thumb,
-.disk-alert-list::-webkit-scrollbar-thumb {
+.inspection-report-list::-webkit-scrollbar-thumb {
   background: rgba(0, 212, 255, 0.35);
   border-radius: 2px;
 }
