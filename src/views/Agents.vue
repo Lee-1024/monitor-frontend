@@ -49,73 +49,6 @@
       </div>
 
       <el-table :data="filteredAgents" v-loading="loading" table-layout="auto" style="width: 100%">
-        <el-table-column type="expand">
-          <template #default="{ row }">
-            <div class="expand-content">
-              <!-- 磁盘使用情况 -->
-              <div v-if="row.diskPartitions && row.diskPartitions.length > 0" class="disk-section">
-                <h4 style="margin-bottom: 16px; color: #303133; font-size: 16px; font-weight: 600">
-                  <el-icon style="margin-right: 6px"><DiskIcon /></el-icon>
-                  磁盘使用情况
-                </h4>
-                <el-table :data="row.diskPartitions" size="small" border style="margin-bottom: 20px">
-                  <el-table-column prop="mountpoint" label="挂载点" width="150">
-                    <template #default="{ row: part }">
-                      <el-icon style="margin-right: 4px"><Folder /></el-icon>
-                      <strong>{{ part.mountpoint || '未知' }}</strong>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="device" label="设备" width="120" />
-                  <el-table-column label="使用率" width="200">
-                    <template #default="{ row: part }">
-                      <div style="display: flex; align-items: center; gap: 8px">
-                        <el-progress 
-                          :percentage="Math.min(part.used_percent || 0, 100)"
-                          :color="getDiskColor(part.used_percent)"
-                          :stroke-width="8"
-                          style="flex: 1"
-                        />
-                        <span style="min-width: 45px; text-align: right; font-weight: 600">
-                          {{ (part.used_percent || 0).toFixed(1) }}%
-                        </span>
-                      </div>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="已用/总计" width="200">
-                    <template #default="{ row: part }">
-                      <span style="color: #E6A23C; font-weight: 500">{{ formatBytes(part.used) }}</span>
-                      <span style="color: #909399; margin: 0 4px">/</span>
-                      <span style="color: #606266">{{ formatBytes(part.total) }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column label="可用" width="120">
-                    <template #default="{ row: part }">
-                      <span style="color: #67C23A">{{ formatBytes(part.free) }}</span>
-                    </template>
-                  </el-table-column>
-                  <el-table-column prop="fstype" label="文件系统" width="100" />
-                </el-table>
-              </div>
-              
-              <!-- 其他信息 -->
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="主机ID">{{ row.host_id }}</el-descriptions-item>
-                <el-descriptions-item label="架构">{{ row.arch }}</el-descriptions-item>
-                <el-descriptions-item label="创建时间">
-                  {{ dayjs(row.created_at).format('YYYY-MM-DD HH:mm:ss') }}
-                </el-descriptions-item>
-                <el-descriptions-item label="最后上报">
-                  {{ dayjs(row.last_seen).format('YYYY-MM-DD HH:mm:ss') }}
-                </el-descriptions-item>
-                <el-descriptions-item label="标签" :span="2">
-                  <el-tag v-for="(value, key) in row.tags" :key="key" style="margin-right: 8px">
-                    {{ key }}: {{ value }}
-                  </el-tag>
-                </el-descriptions-item>
-              </el-descriptions>
-            </div>
-          </template>
-        </el-table-column>
         <el-table-column prop="host_id" label="主机ID" min-width="190" show-overflow-tooltip />
         <el-table-column prop="hostname" label="主机名" min-width="220" show-overflow-tooltip />
         <el-table-column prop="ip" label="IP地址" min-width="150" />
@@ -176,11 +109,9 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Monitor, CircleCheck, CircleClose, Folder } from '@element-plus/icons-vue'
-import DiskIcon from '@/icons/DiskIcon.vue'
+import { Search, Refresh, Monitor, CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { getAgents, deleteAgent } from '@/api/agent'
-import { getLatestMetrics } from '@/api/metrics'
-import type { Agent, ApiResponse, PaginatedResponse, LatestMetrics } from '@/types'
+import type { Agent, ApiResponse, PaginatedResponse } from '@/types'
 import { sortAgents } from '@/utils/agentSort'
 import dayjs from 'dayjs'
 
@@ -220,51 +151,11 @@ const fetchAgents = async () => {
     }) as unknown as ApiResponse<PaginatedResponse<Agent>>
     agents.value = sortAgents(res.data.agents || [])
     total.value = res.data.total || 0
-    
-    // 为在线主机获取磁盘信息
-    await fetchAllDiskInfo()
   } catch (error) {
     ElMessage.error('获取主机列表失败')
   } finally {
     loading.value = false
   }
-}
-
-// 批量获取所有在线主机的磁盘信息
-const fetchAllDiskInfo = async () => {
-  const onlineAgents = agents.value.filter(a => a.status === 'online')
-  const promises = onlineAgents.map(async (agent: any) => {
-    try {
-      const res = await getLatestMetrics(agent.host_id) as unknown as ApiResponse<LatestMetrics>
-      if (res.data?.disk?.partitions && Array.isArray(res.data.disk.partitions)) {
-        agent.diskPartitions = res.data.disk.partitions
-      } else if (res.data?.disk) {
-        // 兼容旧格式：单个分区对象
-        agent.diskPartitions = [res.data.disk]
-      }
-    } catch (error) {
-      console.error(`Failed to fetch disk info for ${agent.host_id}:`, error)
-    }
-  })
-  await Promise.all(promises)
-}
-
-// 格式化字节数
-const formatBytes = (bytes: number) => {
-  if (!bytes || bytes === 0) return '0 B'
-  const k = 1024
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i]
-}
-
-// 获取磁盘使用率颜色
-const getDiskColor = (percent: number) => {
-  if (!percent) return '#67c23a'
-  if (percent >= 90) return '#f56c6c'  // 红色：危险
-  if (percent >= 75) return '#e6a23c'  // 橙色：警告
-  if (percent >= 50) return '#409EFF'  // 蓝色：注意
-  return '#67c23a'  // 绿色：正常
 }
 
 const handleSearch = () => {
@@ -388,23 +279,6 @@ onMounted(() => {
 
 .table-actions :deep(.el-button + .el-button) {
   margin-left: 0;
-}
-
-.expand-content {
-  padding: 20px;
-}
-
-.disk-section {
-  margin-bottom: 20px;
-}
-
-.disk-section h4 {
-  display: flex;
-  align-items: center;
-  margin-bottom: 16px;
-  color: #303133;
-  font-size: 16px;
-  font-weight: 600;
 }
 
 .pagination {

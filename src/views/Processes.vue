@@ -79,7 +79,7 @@
       >
         <el-table-column prop="host_id" label="主机ID" width="150" />
         <el-table-column prop="pid" label="PID" width="80" />
-        <el-table-column prop="name" label="进程名" width="200" />
+        <el-table-column prop="name" label="进程名" min-width="220" show-overflow-tooltip />
         <el-table-column prop="user" label="用户" width="120" />
         <el-table-column label="CPU容量" width="130">
           <template #default="{ row }">
@@ -208,6 +208,7 @@ const historyLoading = ref(false)
 const processHistoryData = ref<Array<{
   timestamp: string
   process_name: string
+  pid?: number
   cpu_percent: number
   memory_percent: number
 }>>([])
@@ -488,6 +489,7 @@ const loadProcessHistory = async () => {
     const res = await axios.get('/v1/processes/history', { params }) as unknown as ApiResponse<Array<{
       timestamp: string
       process_name: string
+      pid?: number
       cpu_percent: number
       memory_percent: number
       memory_bytes: number
@@ -498,8 +500,8 @@ const loadProcessHistory = async () => {
       if (res.data.length === 0) {
         ElMessage.warning('暂无历史数据')
       } else {
-        // 统计返回的进程名
-        const processNames = new Set(res.data.map(d => d.process_name))
+        // 统计返回的进程实例
+        const processNames = new Set(res.data.map(d => d.pid ? `${d.process_name} (${d.pid})` : d.process_name))
         console.log(`Loaded ${res.data.length} history records for ${processNames.size} top processes:`, Array.from(processNames))
       }
     } else {

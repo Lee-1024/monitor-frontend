@@ -16,6 +16,7 @@ const props = defineProps<{
   data: Array<{
     timestamp: string
     process_name: string
+    pid?: number
     cpu_percent: number
     memory_percent: number
   }>
@@ -39,20 +40,21 @@ const initChart = () => {
 const updateChart = () => {
   if (!chart || !props.data || props.data.length === 0) return
   
-  // 按进程名分组数据
+  // 按进程实例分组数据
   const timestamps = getSortedMetricTimestamps(props.data)
   const processMap = new Map<string, Array<{
     value: [number, number]
     raw: {
       timestamp: string
       process_name: string
+      pid?: number
       cpu_percent: number
       memory_percent: number
     }
   }>>()
   
   props.data.forEach(item => {
-    const processName = item.process_name
+    const processName = getProcessSeriesName(item)
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     
     if (!processMap.has(processName)) {
@@ -126,7 +128,12 @@ const updateChart = () => {
           const detail = props.metricType === 'cpu'
             ? `${formatCPUCapacity(rawPoint.cpu_percent)} / ${formatCPUCores(rawPoint.cpu_percent)} / 原始${formatPercent(rawPoint.cpu_percent)}`
             : `${formatPercent(rawPoint.memory_percent)}`
-          result += `${item.marker || '●'} ${item.seriesName}: <strong>${detail}</strong><br/>`
+          result += `
+            <div class="process-tooltip-row">
+              <div class="process-tooltip-name">${item.marker || '●'} ${escapeHtml(String(item.seriesName || ''))}</div>
+              <strong class="process-tooltip-value">${detail}</strong>
+            </div>
+          `
         })
         return result
       }
@@ -218,8 +225,21 @@ function getTooltipTimestamp(item: any) {
 
 function getRawPoint(processName: string, axisTime: number) {
   return props.data.find((item) => {
-    return item.process_name === processName && new Date(item.timestamp).getTime() === axisTime
+    return getProcessSeriesName(item) === processName && new Date(item.timestamp).getTime() === axisTime
   })
+}
+
+function getProcessSeriesName(item: { process_name: string; pid?: number }) {
+  return item.pid ? `${item.process_name} (PID ${item.pid})` : item.process_name
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 watch(() => [props.data, props.metricType, props.hostCoreCount, props.startTime, props.endTime], () => {
@@ -243,9 +263,27 @@ onUnmounted(() => {
 
 <style scoped>
 :global(.process-chart-tooltip) {
-  max-width: 420px;
+  width: min(720px, calc(100vw - 48px));
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+:global(.process-chart-tooltip .process-tooltip-row) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 16px;
+  align-items: start;
+  line-height: 1.5;
+}
+
+:global(.process-chart-tooltip .process-tooltip-name) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:global(.process-chart-tooltip .process-tooltip-value) {
+  white-space: nowrap;
+  text-align: right;
 }
 </style>
 
