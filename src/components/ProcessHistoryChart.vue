@@ -30,6 +30,19 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement>()
 let chart: echarts.ECharts | null = null
 
+type ProcessHistoryRawPoint = {
+  timestamp: string
+  process_name: string
+  pid?: number
+  cpu_percent: number
+  memory_percent: number
+}
+
+type ProcessSeriesPoint = {
+  value: [number, number]
+  raw: ProcessHistoryRawPoint
+}
+
 const initChart = () => {
   if (!chartRef.value) return
   
@@ -40,21 +53,17 @@ const initChart = () => {
 const updateChart = () => {
   if (!chart || !props.data || props.data.length === 0) return
   
-  // 按进程实例分组数据
+  // 按进程名分组数据，PID 在 tooltip 中展示当前采样点命中的实例。
   const timestamps = getSortedMetricTimestamps(props.data)
-  const processMap = new Map<string, Array<{
-    value: [number, number]
-    raw: {
-      timestamp: string
-      process_name: string
-      pid?: number
-      cpu_percent: number
-      memory_percent: number
-    }
-  }>>()
+  const sortedTimestamps = timestamps
+    .map((timestamp) => new Date(timestamp).getTime())
+    .filter((timestamp) => Number.isFinite(timestamp))
+    .sort((a, b) => a - b)
+  const tooltipToleranceMs = getTooltipToleranceMs(sortedTimestamps)
+  const processMap = new Map<string, ProcessSeriesPoint[]>()
   
   props.data.forEach(item => {
-    const processName = getProcessSeriesName(item)
+    const processName = item.process_name
     const value = props.metricType === 'cpu' ? getCPUCapacityPercent(item.cpu_percent) : item.memory_percent
     
     if (!processMap.has(processName)) {
@@ -119,8 +128,8 @@ const updateChart = () => {
         }
         const timestampValue = getTooltipTimestamp(params[0])
         let result = `${formatMetricAxisTimestamp(new Date(timestampValue).toISOString(), timestamps)}<br/>`
-        params.slice(0, 10).forEach((item: any) => {
-          const rawPoint = getRawPoint(String(item.seriesName || ''), timestampValue)
+        topProcesses.forEach((processItem, index) => {
+          const rawPoint = getNearestRawPoint(processItem.data, timestampValue, tooltipToleranceMs)
           if (!rawPoint) return
 
           if (!hasMetricValue(rawPoint)) return
@@ -130,7 +139,10 @@ const updateChart = () => {
             : `${formatPercent(rawPoint.memory_percent)}`
           result += `
             <div class="process-tooltip-row">
-              <div class="process-tooltip-name">${item.marker || '●'} ${escapeHtml(String(item.seriesName || ''))}</div>
+              <div class="process-tooltip-name">
+                <span style="color:${colors[index % colors.length]}">●</span>
+                ${escapeHtml(formatTooltipProcessName(rawPoint))}
+              </div>
               <strong class="process-tooltip-value">${detail}</strong>
             </div>
           `
@@ -223,14 +235,51 @@ function getTooltipTimestamp(item: any) {
   return Number(item?.axisValue || 0)
 }
 
-function getRawPoint(processName: string, axisTime: number) {
-  return props.data.find((item) => {
-    return getProcessSeriesName(item) === processName && new Date(item.timestamp).getTime() === axisTime
+function getNearestRawPoint(data: ProcessSeriesPoint[], axisTime: number, toleranceMs: number) {
+  let nearestIndex = -1
+  let nearestDistance = Number.POSITIVE_INFINITY
+
+  data.forEach((item, index) => {
+    const distance = Math.abs(item.value[0] - axisTime)
+    if (distance < nearestDistance) {
+      nearestIndex = index
+      nearestDistance = distance
+    }
   })
+
+  if (nearestIndex < 0 || nearestDistance > toleranceMs) {
+    return null
+  }
+  return data[nearestIndex]?.raw || null
 }
 
-function getProcessSeriesName(item: { process_name: string; pid?: number }) {
+function formatTooltipProcessName(item: ProcessHistoryRawPoint) {
   return item.pid ? `${item.process_name} (PID ${item.pid})` : item.process_name
+}
+
+function getTooltipToleranceMs(sortedTimestamps: number[]) {
+  if (sortedTimestamps.length < 2) {
+    return 60 * 1000
+  }
+
+  const gaps: number[] = []
+  for (let i = 1; i < sortedTimestamps.length; i++) {
+    const current = sortedTimestamps[i]
+    const previous = sortedTimestamps[i - 1]
+    if (current === undefined || previous === undefined) {
+      continue
+    }
+    const gap = current - previous
+    if (gap > 0) {
+      gaps.push(gap)
+    }
+  }
+  if (gaps.length === 0) {
+    return 60 * 1000
+  }
+  gaps.sort((a, b) => a - b)
+  const medianGap = gaps[Math.floor(gaps.length / 2)] || 60 * 1000
+  return Math.max(medianGap * 1.5, 30 * 1000)
 }
 
 function escapeHtml(value: string) {
