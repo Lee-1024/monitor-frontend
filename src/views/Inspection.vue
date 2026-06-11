@@ -29,80 +29,72 @@
       </template>
 
       <!-- 巡检报告列表 -->
-      <el-table
-        v-loading="loading"
-        :data="reports"
-        stripe
-        style="width: 100%"
-        empty-text="暂无巡检报告"
-      >
-        <el-table-column prop="date" label="巡检日期" width="120" sortable>
-          <template #default="{ row }">
-            {{ formatDate(row.date) }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusName(row.status) }}
+      <div v-loading="loading" class="report-list">
+        <el-empty v-if="reports.length === 0 && !loading" description="暂无巡检报告" />
+        <div
+          v-for="report in reports"
+          :key="report.id"
+          class="report-row"
+        >
+          <div class="report-primary">
+            <div class="report-date">{{ formatDate(report.date) }}</div>
+            <el-tag :type="getStatusType(report.status)" size="small">
+              {{ getStatusName(report.status) }}
             </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="total_hosts" label="总主机数" width="100">
-          <template #default="{ row }">
-            {{ row.total_hosts || 0 }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="online_hosts" label="在线" width="80">
-          <template #default="{ row }">
-            <el-tag type="success">{{ row.online_hosts || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="offline_hosts" label="离线" width="80">
-          <template #default="{ row }">
-            <el-tag type="info">{{ row.offline_hosts || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="warning_hosts" label="告警" width="80">
-          <template #default="{ row }">
-            <el-tag type="warning">{{ row.warning_hosts || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="critical_hosts" label="严重" width="80">
-          <template #default="{ row }">
-            <el-tag type="danger">{{ row.critical_hosts || 0 }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
-          <template #default="{ row }">
-            {{ formatDateTime(row.created_at) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
-          <template #default="{ row }">
+          </div>
+
+          <div class="report-metrics">
+            <div class="metric-item">
+              <span class="metric-label">总数</span>
+              <strong>{{ report.total_hosts || 0 }}</strong>
+            </div>
+            <div class="metric-item success">
+              <span class="metric-label">在线</span>
+              <strong>{{ report.online_hosts || 0 }}</strong>
+            </div>
+            <div class="metric-item muted">
+              <span class="metric-label">离线</span>
+              <strong>{{ report.offline_hosts || 0 }}</strong>
+            </div>
+            <div class="metric-item warning">
+              <span class="metric-label">告警</span>
+              <strong>{{ report.warning_hosts || 0 }}</strong>
+            </div>
+            <div class="metric-item danger">
+              <span class="metric-label">严重</span>
+              <strong>{{ report.critical_hosts || 0 }}</strong>
+            </div>
+          </div>
+
+          <div class="report-meta">
+            <span class="meta-label">创建时间</span>
+            <span>{{ formatDateTime(report.created_at) }}</span>
+          </div>
+
+          <div class="report-actions">
             <el-button
               type="primary"
               size="small"
               link
-              @click="handleViewReport(row)"
+              @click="handleViewReport(report)"
             >
               <el-icon><View /></el-icon>
               查看详情
             </el-button>
             <el-button
-              v-if="row.status === 'completed'"
+              v-if="report.status === 'completed'"
               type="success"
               size="small"
               link
-              @click="handleGenerateReport(row)"
-              :loading="generatingReportId === row.id"
+              @click="handleGenerateReport(report)"
+              :loading="generatingReportId === report.id"
             >
               <el-icon><Document /></el-icon>
               生成日报
             </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
+          </div>
+        </div>
+      </div>
 
       <!-- 分页 -->
       <div class="pagination" v-if="total > 0">
@@ -190,6 +182,20 @@
                 </template>
               </el-table-column>
               <el-table-column prop="service_running" label="运行服务" width="100" />
+              <el-table-column label="服务端探测" width="180">
+                <template #default="{ row }">
+                  <div v-if="row.server_probe_count > 0" class="probe-summary">
+                    <el-tag size="small" type="success">正常 {{ row.server_probe_up || 0 }}</el-tag>
+                    <el-tag v-if="row.server_probe_down > 0" size="small" type="danger">
+                      失败 {{ row.server_probe_down }}
+                    </el-tag>
+                    <el-tag v-if="row.server_probe_unknown > 0" size="small" type="info">
+                      未知 {{ row.server_probe_unknown }}
+                    </el-tag>
+                  </div>
+                  <span v-else class="empty-cell">未配置</span>
+                </template>
+              </el-table-column>
               <el-table-column prop="alert_count" label="告警数" width="80" />
               <el-table-column label="问题" min-width="200">
                 <template #default="{ row }">
@@ -541,9 +547,158 @@ onMounted(() => {
     display: flex;
     justify-content: flex-end;
   }
+
+  .report-list {
+    min-height: 180px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .report-row {
+    display: grid;
+    grid-template-columns: 170px minmax(360px, 1fr) 220px 170px;
+    align-items: center;
+    gap: 18px;
+    padding: 16px 18px;
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      border-color: #c6e2ff;
+      box-shadow: 0 4px 14px rgba(64, 158, 255, 0.1);
+    }
+  }
+
+  .report-primary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+  }
+
+  .report-date {
+    font-size: 15px;
+    font-weight: 600;
+    color: #303133;
+    white-space: nowrap;
+  }
+
+  .report-metrics {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(64px, 1fr));
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .metric-item {
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #f5f7fa;
+    border: 1px solid #ebeef5;
+
+    .metric-label {
+      display: block;
+      margin-bottom: 4px;
+      color: #909399;
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    strong {
+      color: #303133;
+      font-size: 18px;
+      line-height: 1;
+    }
+
+    &.success strong {
+      color: #67c23a;
+    }
+
+    &.muted strong {
+      color: #909399;
+    }
+
+    &.warning strong {
+      color: #e6a23c;
+    }
+
+    &.danger strong {
+      color: #f56c6c;
+    }
+  }
+
+  .report-meta {
+    min-width: 0;
+    color: #606266;
+    font-size: 13px;
+    line-height: 1.5;
+
+    .meta-label {
+      display: block;
+      color: #909399;
+      font-size: 12px;
+    }
+  }
+
+  .report-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    white-space: nowrap;
+
+    .el-button + .el-button {
+      margin-left: 0;
+    }
+  }
+
+  @media (max-width: 1400px) {
+    .report-row {
+      grid-template-columns: 150px minmax(300px, 1fr) 200px;
+    }
+
+    .report-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-start;
+      padding-top: 2px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .card-header {
+      align-items: flex-start;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .report-row {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .report-metrics {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
 }
 
 .report-detail {
+  .probe-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+
+  .empty-cell {
+    color: #909399;
+    font-size: 13px;
+  }
+
   .report-content {
     min-height: 400px;
     max-height: 600px;

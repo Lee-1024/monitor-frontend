@@ -23,6 +23,10 @@ export interface InspectionRecord {
   service_running: number
   service_stopped: number
   service_failed: number
+  server_probe_count: number
+  server_probe_up: number
+  server_probe_down: number
+  server_probe_unknown: number
   anomaly_count: number
   alert_count: number
   critical_alert_count: number
