@@ -264,6 +264,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, VideoPlay, Refresh, View, Document } from '@element-plus/icons-vue'
+import { formatMarkdown } from '@/utils/markdown'
 import {
   runInspection,
   listInspectionReports,
@@ -500,23 +501,6 @@ const formatDate = (date: string) => {
 const formatDateTime = (datetime: string) => {
   if (!datetime) return '-'
   return new Date(datetime).toLocaleString('zh-CN')
-}
-
-// Markdown格式化
-const formatMarkdown = (text: string) => {
-  if (!text) return ''
-  
-  // 简单的Markdown转HTML
-  return text
-    .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    .replace(/^- (.*$)/gim, '<li>$1</li>')
-    .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-    .replace(/\n/gim, '<br>')
 }
 
 onMounted(() => {

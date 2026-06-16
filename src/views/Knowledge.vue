@@ -165,6 +165,7 @@ import { ref, reactive, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Document, Search, Warning, Star, Files, View, Edit, Delete, Plus, Refresh } from '@element-plus/icons-vue'
 import type { ComponentPublicInstance } from 'vue'
+import { formatMarkdown } from '@/utils/markdown'
 import {
   listTroubleshootingGuides,
   getTroubleshootingGuide,
@@ -514,20 +515,6 @@ const handleSearch = () => {
   )
 }
 
-// Markdown格式化
-const formatMarkdown = (text: string) => {
-  if (!text) return ''
-  
-  // 简单的Markdown转HTML
-  return text
-    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
-    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
-    .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/gim, '<em>$1</em>')
-    .replace(/^- (.*$)/gim, '<li>$1</li>')
-    .replace(/\n/gim, '<br>')
-}
 </script>
 
 <style scoped lang="scss">

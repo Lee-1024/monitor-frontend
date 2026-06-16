@@ -95,7 +95,7 @@
               v-if="message.role === 'assistant' && message.report"
               :report="message.report"
             />
-            <div v-if="message.content" class="message-content" v-html="formatMessage(message.content)" />
+            <div v-if="message.content" class="message-content markdown-content" v-html="formatMarkdown(message.content)" />
           </div>
         </div>
       </div>
@@ -143,6 +143,7 @@ import { Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getAgents } from '@/api/agent'
 import { sortAgents } from '@/utils/agentSort'
+import { formatMarkdown } from '@/utils/markdown'
 import {
   deleteOpsAssistantSession,
   streamOpsAssistant,
@@ -498,83 +499,6 @@ const stopStream = () => {
   ElMessage.info('已停止生成')
 }
 
-const formatMessage = (content: string) => {
-  const sanitized = stripThinkBlocks(content)
-  const lines = sanitized.split('\n')
-  const html: string[] = []
-  let listType: 'ul' | 'ol' | null = null
-
-  const closeList = () => {
-    if (listType) {
-      html.push(`</${listType}>`)
-      listType = null
-    }
-  }
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim()
-    if (!line) {
-      closeList()
-      continue
-    }
-
-    const heading = line.match(/^(#{1,4})\s+(.+)$/)
-    if (heading) {
-      closeList()
-      html.push(`<h${heading[1].length} class="md-heading md-h${heading[1].length}">${inlineMarkdown(heading[2])}</h${heading[1].length}>`)
-      continue
-    }
-
-    const ordered = line.match(/^\d+[.)]\s+(.+)$/)
-    if (ordered) {
-      if (listType !== 'ol') {
-        closeList()
-        listType = 'ol'
-        html.push('<ol class="md-list">')
-      }
-      html.push(`<li>${inlineMarkdown(ordered[1])}</li>`)
-      continue
-    }
-
-    const unordered = line.match(/^[-*]\s+(.+)$/)
-    if (unordered) {
-      if (listType !== 'ul') {
-        closeList()
-        listType = 'ul'
-        html.push('<ul class="md-list">')
-      }
-      html.push(`<li>${inlineMarkdown(unordered[1])}</li>`)
-      continue
-    }
-
-    closeList()
-    html.push(`<p class="md-paragraph">${inlineMarkdown(line)}</p>`)
-  }
-
-  closeList()
-  return html.join('')
-}
-
-const stripThinkBlocks = (content: string) => {
-  return content
-    .replace(/<think>[\s\S]*?<\/think>/gi, '')
-    .replace(/<\/?think>/gi, '')
-    .trim()
-}
-
-const inlineMarkdown = (content: string) => {
-  return escapeHtml(content)
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-}
-
-const escapeHtml = (content: string) => {
-  return content
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
-
 onMounted(() => {
   loadAgents()
 })
@@ -928,3 +852,4 @@ onUnmounted(() => {
   }
 }
 </style>
+
