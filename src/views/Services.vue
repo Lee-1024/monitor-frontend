@@ -39,6 +39,7 @@
             stripe
             table-layout="auto"
             style="width: 100%"
+            row-key="id"
             empty-text="暂无数据"
             @selection-change="handleServiceSelectionChange"
           >
@@ -294,9 +295,13 @@ const loadProbeTargets = async () => {
 }
 
 const handleDeleteSelectedServices = async () => {
-  const ids = selectedServices.value.map((item) => item.id).filter(Boolean)
-  if (ids.length === 0) {
+  if (selectedServices.value.length === 0) {
     ElMessage.warning('请先选择要删除的服务状态记录')
+    return
+  }
+  const ids = selectedServices.value.map((item) => item.id).filter((id) => id > 0)
+  if (ids.length !== selectedServices.value.length) {
+    ElMessage.warning('选中的记录缺少数据库ID，请刷新后再删除')
     return
   }
 
