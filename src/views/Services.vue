@@ -18,8 +18,14 @@
               <el-icon><Refresh /></el-icon>
               刷新
             </el-button>
-            <el-button type="danger" :loading="cleaning" @click="handleClearServiceHistory" style="margin-left: 10px">
-              清理历史
+            <el-button
+              type="danger"
+              :disabled="selectedServices.length === 0"
+              :loading="deletingServices"
+              @click="handleDeleteSelectedServices"
+              style="margin-left: 10px"
+            >
+              删除选中
             </el-button>
           </div>
         </div>
@@ -34,7 +40,9 @@
             table-layout="auto"
             style="width: 100%"
             empty-text="暂无数据"
+            @selection-change="handleServiceSelectionChange"
           >
+            <el-table-column type="selection" width="55" />
             <el-table-column prop="host_id" label="主机ID" min-width="170" show-overflow-tooltip />
             <el-table-column prop="name" label="服务名称" min-width="200" show-overflow-tooltip />
             <el-table-column label="端口" width="100">
@@ -202,11 +210,12 @@ interface ServiceInfo {
 }
 
 const loading = ref(false)
-const cleaning = ref(false)
+const deletingServices = ref(false)
 const activeTab = ref('agent')
 const selectedHost = ref('')
 const agents = ref<Agent[]>([])
 const services = ref<ServiceInfo[]>([])
+const selectedServices = ref<ServiceInfo[]>([])
 const serviceCurrentPage = ref(1)
 const servicePageSize = ref(20)
 const probeLoading = ref(false)
@@ -252,6 +261,7 @@ const loadServices = async () => {
     
     const res = await axios.get('/v1/services', { params }) as unknown as ApiResponse<ServiceInfo[]>
     services.value = res.data || []
+    selectedServices.value = []
   } catch (error) {
     ElMessage.error('加载服务状态失败')
   } finally {
@@ -267,6 +277,10 @@ const handleServiceCurrentChange = () => {
   // current page is already synced by el-pagination
 }
 
+const handleServiceSelectionChange = (rows: ServiceInfo[]) => {
+  selectedServices.value = rows
+}
+
 const loadProbeTargets = async () => {
   try {
     probeLoading.value = true
@@ -279,35 +293,35 @@ const loadProbeTargets = async () => {
   }
 }
 
-const getSelectedHostLabel = () => {
-  const agent = agents.value.find((item) => item.host_id === selectedHost.value)
-  return agent ? `${agent.hostname || agent.host_id} (${agent.host_id})` : selectedHost.value
-}
+const handleDeleteSelectedServices = async () => {
+  const ids = selectedServices.value.map((item) => item.id).filter(Boolean)
+  if (ids.length === 0) {
+    ElMessage.warning('请先选择要删除的服务状态记录')
+    return
+  }
 
-const handleClearServiceHistory = async () => {
-  const scopeText = selectedHost.value ? `主机 ${getSelectedHostLabel()}` : '全部主机'
   try {
     await ElMessageBox.confirm(
-      `确定要清理${scopeText}的服务状态历史数据吗？清理后页面会等待 Agent 下一次上报新数据。`,
-      '清理服务状态历史',
+      `确定要删除选中的 ${ids.length} 条服务状态记录吗？`,
+      '删除服务状态',
       {
-        confirmButtonText: '确定清理',
+        confirmButtonText: '确定删除',
         cancelButtonText: '取消',
         type: 'warning'
       }
     )
 
-    cleaning.value = true
-    const res = await deleteServiceStatus(selectedHost.value || undefined) as unknown as ApiResponse<{ deleted_count: number }>
+    deletingServices.value = true
+    const res = await deleteServiceStatus(ids) as unknown as ApiResponse<{ deleted_count: number }>
     const deletedCount = res.data?.deleted_count || 0
-    ElMessage.success(`已清理 ${deletedCount} 条服务状态历史数据`)
+    ElMessage.success(`已删除 ${deletedCount} 条服务状态记录`)
     await loadServices()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('清理服务状态历史数据失败')
+      ElMessage.error('删除服务状态记录失败')
     }
   } finally {
-    cleaning.value = false
+    deletingServices.value = false
   }
 }
 
