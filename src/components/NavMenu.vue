@@ -59,10 +59,6 @@
         <el-icon><MagicStick /></el-icon>
         <template #title>LLM配置</template>
       </el-menu-item>
-      <el-menu-item index="/ai-analysis">
-        <el-icon><TrendCharts /></el-icon>
-        <template #title>AI分析</template>
-      </el-menu-item>
       <el-menu-item index="/ops-assistant">
         <el-icon><MagicStick /></el-icon>
         <template #title>运维助手</template>
@@ -93,7 +89,6 @@ import {
   Monitor,
   Search,
   Tools,
-  TrendCharts,
   User,
   Warning
 } from '@element-plus/icons-vue'

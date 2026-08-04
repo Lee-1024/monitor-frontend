@@ -103,12 +103,6 @@ const routes: RouteRecordRaw[] = [
     meta: { title: 'LLM模型配置', requiresAuth: true, requiresAdmin: true }
   },
   {
-    path: '/ai-analysis',
-    name: 'AIAnalysis',
-    component: () => import('@/views/AIAnalysis.vue'),
-    meta: { title: 'AI分析', requiresAuth: true }
-  },
-  {
     path: '/ops-assistant',
     name: 'OpsAssistant',
     component: () => import('@/views/OpsAssistant.vue'),

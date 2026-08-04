@@ -46,6 +46,31 @@
             class="time-range"
           />
         </div>
+
+        <div class="context-field resource-field">
+          <span class="context-label">资源</span>
+          <el-select v-model="resourceType" class="resource-select">
+            <el-option label="全部" value="all" />
+            <el-option label="CPU" value="cpu" />
+            <el-option label="内存" value="memory" />
+            <el-option label="磁盘" value="disk" />
+          </el-select>
+        </div>
+
+        <div class="context-field number-field">
+          <span class="context-label">预测</span>
+          <el-input-number v-model="predictionDays" :min="7" :max="90" :step="7" controls-position="right" class="small-number" />
+        </div>
+
+        <div class="context-field number-field">
+          <span class="context-label">阈值</span>
+          <el-input-number v-model="threshold" :min="50" :max="100" :step="5" controls-position="right" class="small-number" />
+        </div>
+
+        <div class="context-field number-field">
+          <span class="context-label">时长</span>
+          <el-input-number v-model="analysisHours" :min="1" :max="168" :step="1" controls-position="right" class="small-number" />
+        </div>
       </div>
 
       <div ref="messageListRef" class="messages">
@@ -171,6 +196,10 @@ interface ChatMessage {
 const agents = ref<AgentOption[]>([])
 const selectedHost = ref('')
 const timeRange = ref<[string, string] | null>(null)
+const resourceType = ref('all')
+const predictionDays = ref(30)
+const threshold = ref(80)
+const analysisHours = ref(24)
 const input = ref('')
 const messages = ref<ChatMessage[]>([])
 const toolCalls = ref<OpsAssistantToolCall[]>([])
@@ -200,9 +229,24 @@ const examples = [
     prompt: '结合最近 24 小时指标，分析所选主机是否存在性能瓶颈'
   },
   {
+    title: '容量规划',
+    description: '预测资源到达阈值的时间和扩容优先级',
+    prompt: '根据当前参数做容量预测，判断所选主机资源什么时候会到达阈值，并给出扩容建议'
+  },
+  {
+    title: '成本优化',
+    description: '评估资源是否过配并给出降本建议',
+    prompt: '分析所选主机的资源使用和预测趋势，给出成本优化和降配建议'
+  },
+  {
     title: '告警根因分析',
     description: '梳理近期告警和异常之间的关联',
     prompt: '帮我分析近期未解决告警的可能原因，并给出排查步骤'
+  },
+  {
+    title: '异常检测总结',
+    description: '汇总未解决异常并给出处置步骤',
+    prompt: '检测并总结所选主机最近的异常情况，说明可能原因和处理步骤'
   },
   {
     title: '知识库排障',
@@ -264,7 +308,7 @@ const renderNextFrame = () => {
   const next = pendingContent.slice(0, chunkSize)
   pendingContent = pendingContent.slice(chunkSize)
   if (activeAssistantIndex >= 0 && messages.value[activeAssistantIndex]) {
-    const current = messages.value[activeAssistantIndex]
+    const current = messages.value[activeAssistantIndex]!
     messages.value[activeAssistantIndex] = {
       ...current,
       content: current.content + next
@@ -276,8 +320,9 @@ const renderNextFrame = () => {
 
 const updateActiveAssistantMessage = (patch: Partial<ChatMessage>) => {
   if (activeAssistantIndex < 0 || !messages.value[activeAssistantIndex]) return
+  const current = messages.value[activeAssistantIndex]!
   messages.value[activeAssistantIndex] = {
-    ...messages.value[activeAssistantIndex],
+    ...current,
     ...patch
   }
 }
@@ -290,7 +335,7 @@ const timelineKey = (event: OpsAssistantTimelineEvent) => {
 
 const appendTimelineEvent = (event: OpsAssistantTimelineEvent) => {
   if (activeAssistantIndex < 0 || !messages.value[activeAssistantIndex]) return
-  const current = messages.value[activeAssistantIndex]
+  const current = messages.value[activeAssistantIndex]!
   const timeline = [...(current.timeline || [])]
   const key = timelineKey(event)
   const existingIndex = timeline.findIndex((item) => timelineKey(item) === key)
@@ -310,7 +355,7 @@ const appendTimelineEvent = (event: OpsAssistantTimelineEvent) => {
 
 const completeRunningTimelineEvents = () => {
   if (activeAssistantIndex < 0 || !messages.value[activeAssistantIndex]) return
-  const current = messages.value[activeAssistantIndex]
+  const current = messages.value[activeAssistantIndex]!
   updateActiveAssistantMessage({
     timeline: (current.timeline || []).map((event) => {
       if (event.status === 'running') {
@@ -361,7 +406,11 @@ const send = () => {
       message: text,
       session_id: sessionId.value || undefined,
       host_id: selectedHost.value || undefined,
-      time_range: timeRange.value ? { from: timeRange.value[0], to: timeRange.value[1] } : undefined
+      time_range: timeRange.value ? { from: timeRange.value[0], to: timeRange.value[1] } : undefined,
+      resource_type: resourceType.value,
+      days: predictionDays.value,
+      threshold: threshold.value,
+      hours: analysisHours.value
     },
     (event) => {
       if (event.type === 'graph_node') {
@@ -597,6 +646,14 @@ onUnmounted(() => {
   }
 }
 
+.resource-select {
+  width: 112px;
+}
+
+.small-number {
+  width: 112px;
+}
+
 .messages {
   flex: 1;
   min-height: 280px;
@@ -830,12 +887,16 @@ onUnmounted(() => {
 
   .context-field,
   .host-select,
-  .time-range {
+  .time-range,
+  .resource-select,
+  .small-number {
     width: 100%;
   }
 
   .host-field,
-  .time-field {
+  .time-field,
+  .resource-field,
+  .number-field {
     flex: 1 1 100%;
   }
 

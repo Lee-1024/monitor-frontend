@@ -595,7 +595,7 @@ const handleSearch = () => {
   }
 }
 
-// 加载动画样式（复用AIAnalysis的样式）
+// 加载动画样式
 .loading-animation {
   display: flex;
   justify-content: center;

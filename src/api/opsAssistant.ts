@@ -10,6 +10,10 @@ export interface OpsAssistantChatRequest {
   session_id?: string
   host_id?: string
   time_range?: OpsAssistantTimeRange
+  resource_type?: string
+  days?: number
+  threshold?: number
+  hours?: number
 }
 
 export interface OpsAssistantSession {
@@ -141,6 +145,10 @@ export function streamOpsAssistant(
     params.set('from', data.time_range.from)
     params.set('to', data.time_range.to)
   }
+  if (data.resource_type) params.set('resource_type', data.resource_type)
+  if (data.days) params.set('days', String(data.days))
+  if (data.threshold) params.set('threshold', String(data.threshold))
+  if (data.hours) params.set('hours', String(data.hours))
 
   const baseURL = import.meta.env.VITE_API_BASE_URL || '/api'
   const url = `${baseURL}/v1/ops-assistant/chat/stream?${params.toString()}`
