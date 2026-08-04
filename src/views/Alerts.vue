@@ -1161,8 +1161,9 @@ const handleToggleChannel = async (channel: NotificationChannel, newValue: boole
   const originalEnabled = channel.enabled
   // 先更新本地状态以提供即时反馈
   const index = channels.value.findIndex(c => c.id === channel.id)
-  if (index !== -1) {
-    channels.value[index].enabled = newValue
+  const targetChannel = index !== -1 ? channels.value[index] : undefined
+  if (targetChannel) {
+    targetChannel.enabled = newValue
   }
   try {
     const res = await updateNotificationChannel(channel.id, { enabled: newValue })
@@ -1172,15 +1173,15 @@ const handleToggleChannel = async (channel: NotificationChannel, newValue: boole
       ElMessage.success('更新成功')
     } else {
       // 如果返回码不是200，恢复原状态
-      if (index !== -1) {
-        channels.value[index].enabled = originalEnabled
+      if (targetChannel) {
+        targetChannel.enabled = originalEnabled
       }
       ElMessage.error('更新失败')
     }
   } catch (error: any) {
     // 更新失败，恢复原状态
-    if (index !== -1) {
-      channels.value[index].enabled = originalEnabled
+    if (targetChannel) {
+      targetChannel.enabled = originalEnabled
     }
     ElMessage.error('更新失败: ' + (error.response?.data?.message || error.message))
   }
@@ -1226,7 +1227,7 @@ const handleTestChannel = async () => {
     } finally {
       channelTestLoading.value = false
     }
-  }, ['type', 'name'])
+  })
 }
 
 const handleChannelSubmit = async () => {
@@ -1357,8 +1358,9 @@ const handleToggleRule = async (rule: AlertRule, newValue: boolean) => {
   const originalEnabled = rule.enabled
   // 先更新本地状态以提供即时反馈
   const index = rules.value.findIndex(r => r.id === rule.id)
-  if (index !== -1) {
-    rules.value[index].enabled = newValue
+  const targetRule = index !== -1 ? rules.value[index] : undefined
+  if (targetRule) {
+    targetRule.enabled = newValue
   }
   try {
     const res = await updateAlertRule(rule.id, { enabled: newValue })
@@ -1368,15 +1370,15 @@ const handleToggleRule = async (rule: AlertRule, newValue: boolean) => {
       ElMessage.success('更新成功')
     } else {
       // 如果返回码不是200，恢复原状态
-      if (index !== -1) {
-        rules.value[index].enabled = originalEnabled
+      if (targetRule) {
+        targetRule.enabled = originalEnabled
       }
       ElMessage.error('更新失败')
     }
   } catch (error: any) {
     // 更新失败，恢复原状态
-    if (index !== -1) {
-      rules.value[index].enabled = originalEnabled
+    if (targetRule) {
+      targetRule.enabled = originalEnabled
     }
     ElMessage.error('更新失败: ' + (error.response?.data?.message || error.message))
   }
@@ -1495,8 +1497,9 @@ const handleToggleSilence = async (silence: AlertSilence, newValue: boolean) => 
   const originalEnabled = silence.enabled
   // 先更新本地状态以提供即时反馈
   const index = silences.value.findIndex(s => s.id === silence.id)
-  if (index !== -1) {
-    silences.value[index].enabled = newValue
+  const targetSilence = index !== -1 ? silences.value[index] : undefined
+  if (targetSilence) {
+    targetSilence.enabled = newValue
   }
   try {
     const res = await updateAlertSilence(silence.id, { enabled: newValue })
@@ -1506,15 +1509,15 @@ const handleToggleSilence = async (silence: AlertSilence, newValue: boolean) => 
       ElMessage.success('更新成功')
     } else {
       // 如果返回码不是200，恢复原状态
-      if (index !== -1) {
-        silences.value[index].enabled = originalEnabled
+      if (targetSilence) {
+        targetSilence.enabled = originalEnabled
       }
       ElMessage.error('更新失败')
     }
   } catch (error: any) {
     // 更新失败，恢复原状态
-    if (index !== -1) {
-      silences.value[index].enabled = originalEnabled
+    if (targetSilence) {
+      targetSilence.enabled = originalEnabled
     }
     ElMessage.error('更新失败: ' + (error.response?.data?.message || error.message))
   }
@@ -1796,7 +1799,7 @@ const loadAvailableServicePorts = async (hostId?: string) => {
         if (res.code === 200 && res.data) {
           services = Array.isArray(res.data) ? res.data : []
         } else {
-          console.warn('[loadAvailableServicePorts] Response code is not 200:', res.code, res.message)
+          console.warn('[loadAvailableServicePorts] Response code is not 200:', res.code)
         }
       } else if (Array.isArray(res)) {
         // 直接是数组格式（不应该发生，但为了健壮性保留）

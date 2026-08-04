@@ -161,9 +161,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Document, Search, Warning, Star, Files, View, Edit, Delete, Plus, Refresh } from '@element-plus/icons-vue'
+import { Document, Search, Warning, Star, Files } from '@element-plus/icons-vue'
 import type { ComponentPublicInstance } from 'vue'
 import { formatMarkdown } from '@/utils/markdown'
 import {
@@ -209,7 +209,7 @@ const bestPracticeListRef = ref<ComponentPublicInstance | null>(null)
 const caseStudyListRef = ref<ComponentPublicInstance | null>(null)
 
 // Tab切换处理
-const handleTabChange = (tab: string) => {
+const handleTabChange = (_tab: string) => {
   // 可以在这里添加切换逻辑
 }
 

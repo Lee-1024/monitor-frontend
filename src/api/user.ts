@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { ApiResponse, PaginatedResponse } from '@/types'
+import type { PaginatedResponse } from '@/types'
 import type { UserInfo } from './auth'
 
 // 创建用户请求
@@ -24,7 +24,7 @@ export interface ResetPasswordRequest {
 
 // 获取用户列表
 export const getUserList = (params?: { page?: number; page_size?: number }) => {
-  return request<ApiResponse<PaginatedResponse<UserInfo>>>({
+  return request<PaginatedResponse<UserInfo>>({
     url: '/v1/users',
     method: 'get',
     params
@@ -33,7 +33,7 @@ export const getUserList = (params?: { page?: number; page_size?: number }) => {
 
 // 获取单个用户
 export const getUser = (id: number) => {
-  return request<ApiResponse<UserInfo>>({
+  return request<UserInfo>({
     url: `/v1/users/${id}`,
     method: 'get'
   })
@@ -41,7 +41,7 @@ export const getUser = (id: number) => {
 
 // 创建用户
 export const createUser = (data: CreateUserRequest) => {
-  return request<ApiResponse<UserInfo>>({
+  return request<UserInfo>({
     url: '/v1/users',
     method: 'post',
     data
@@ -50,7 +50,7 @@ export const createUser = (data: CreateUserRequest) => {
 
 // 更新用户
 export const updateUser = (id: number, data: UpdateUserRequest) => {
-  return request<ApiResponse<UserInfo>>({
+  return request<UserInfo>({
     url: `/v1/users/${id}`,
     method: 'put',
     data
@@ -59,7 +59,7 @@ export const updateUser = (id: number, data: UpdateUserRequest) => {
 
 // 删除用户
 export const deleteUser = (id: number) => {
-  return request<ApiResponse>({
+  return request({
     url: `/v1/users/${id}`,
     method: 'delete'
   })
@@ -67,7 +67,7 @@ export const deleteUser = (id: number) => {
 
 // 重置用户密码
 export const resetUserPassword = (id: number, data: ResetPasswordRequest) => {
-  return request<ApiResponse>({
+  return request({
     url: `/v1/users/${id}/reset-password`,
     method: 'post',
     data

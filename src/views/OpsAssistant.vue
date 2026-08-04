@@ -167,21 +167,34 @@
           刷新
         </el-button>
         <el-empty v-if="!sessionsLoading && sessions.length === 0" description="暂无历史会话" />
-        <div v-else class="session-list">
-          <button
+        <div v-else v-loading="sessionsLoading" class="session-list">
+          <div
             v-for="session in sessions"
             :key="session.id"
             class="session-item"
-            type="button"
+            :class="{ active: session.id === sessionId }"
+            role="button"
+            tabindex="0"
             @click="restoreSession(session.id)"
+            @keydown.enter="restoreSession(session.id)"
           >
-            <span class="session-title">{{ session.title }}</span>
-            <span class="session-summary">{{ session.summary || '暂无摘要' }}</span>
-            <span class="session-meta">
-              <span>{{ formatSessionTime(session.updatedAt) }}</span>
-              <span v-if="session.hostName || session.hostId">{{ session.hostName || session.hostId }}</span>
-            </span>
-          </button>
+            <div class="session-main">
+              <span class="session-title">{{ session.title }}</span>
+              <span class="session-summary">{{ session.summary || '暂无摘要' }}</span>
+              <span class="session-meta">
+                <span>{{ formatSessionTime(session.updatedAt) }}</span>
+                <span v-if="session.hostName || session.hostId">{{ session.hostName || session.hostId }}</span>
+              </span>
+            </div>
+            <el-button
+              class="session-delete"
+              :icon="Delete"
+              circle
+              text
+              type="danger"
+              @click.stop="deleteSessionFromDrawer(session.id)"
+            />
+          </div>
         </div>
       </div>
     </el-drawer>
@@ -390,6 +403,9 @@ const restoreSession = async (id: string) => {
     const range = context.time_range || context.TimeRange
     timeRange.value = range?.from && range?.to ? [range.from, range.to] : null
     messages.value = normalizeSessionMessages(session)
+    if (messages.value.length === 0) {
+      ElMessage.info('该会话暂无可恢复的聊天消息')
+    }
     toolCalls.value = []
     errorMessage.value = ''
     activeAssistantMessageId.value = ''
@@ -397,6 +413,19 @@ const restoreSession = async (id: string) => {
     scrollToBottom()
   } catch (error: any) {
     ElMessage.error(error.message || '恢复会话失败')
+  }
+}
+
+const deleteSessionFromDrawer = async (id: string) => {
+  try {
+    await deleteOpsAssistantSession(id)
+    sessions.value = sessions.value.filter((session) => session.id !== id)
+    if (sessionId.value === id) {
+      resetConversationState()
+    }
+    ElMessage.success('会话已删除')
+  } catch (error: any) {
+    ElMessage.error(error.message || '删除会话失败')
   }
 }
 
@@ -1027,8 +1056,8 @@ onUnmounted(() => {
 
 .session-item {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 8px;
   width: 100%;
   min-height: 92px;
   padding: 12px;
@@ -1043,6 +1072,23 @@ onUnmounted(() => {
     border-color: #409eff;
     box-shadow: 0 4px 14px rgba(64, 158, 255, 0.12);
   }
+
+  &.active {
+    border-color: #409eff;
+    background: #ecf5ff;
+  }
+}
+
+.session-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.session-delete {
+  flex: none;
 }
 
 .session-title {

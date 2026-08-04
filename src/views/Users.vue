@@ -398,12 +398,13 @@ const handleResetPassword = (row: UserInfo) => {
 
 const handlePasswordSubmit = async () => {
   if (!passwordFormRef.value || !currentEditUserId.value) return
+  const userID = currentEditUserId.value
 
   await passwordFormRef.value.validate(async (valid) => {
     if (valid) {
       passwordLoading.value = true
       try {
-        const res = await resetUserPassword(currentEditUserId.value, {
+        const res = await resetUserPassword(userID, {
           new_password: passwordForm.new_password
         })
         if (res.code === 200) {
