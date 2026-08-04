@@ -1,451 +1,195 @@
-# 监控系统前端
+# Monitor Frontend
 
-基于 Vue 3 + TypeScript + Vite 构建的监控系统前端应用。
+Vue 3 + TypeScript + Vite 构建的监控系统前端。当前前端已经从单独的“AI分析”页面收敛为“运维助手”入口，面向日常监控、告警处理、容量/成本分析、知识库排障和巡检报告查看。
+
+## 当前能力
+
+- 监控面板：主机概览、在线/离线统计、Top 指标和最新上报时间。
+- 监控大屏：全屏展示主机、CPU、内存、GPU、告警和资源异常。
+- 主机管理：主机列表、主机详情、历史指标趋势。
+- 进程监控：进程列表、CPU/内存趋势，多核 CPU 使用按主机总容量归一化展示。
+- Docker 监控：容器列表、容器资源使用和历史趋势。
+- GPU 监控：GPU 设备、厂商、显存、使用率、温度、功耗。
+- 日志查看：按主机、级别、关键字筛选日志。
+- 服务状态：systemd/Windows 服务和端口探测结果展示。
+- 脚本执行：查看 Agent 上报的脚本执行结果。
+- 告警管理：规则、历史、静默、通知渠道管理。
+- 运维助手：统一承载原 AI 分析能力，支持流式诊断、工具执行时间线、结构化报告、历史会话恢复和删除。
+- 知识库：故障处理、最佳实践、故障案例维护，以及 LLM 流式搜索。
+- 智能巡检：触发巡检、查看巡检报告、流式生成巡检日报。
+- LLM 配置：管理员维护 OpenAI 兼容模型配置、测试连接、设置默认模型。
+- 用户管理：管理员维护用户、角色、状态和密码重置。
+
+## 运维助手说明
+
+运维助手页面位于 `/ops-assistant`，是当前系统的 AI 运维统一入口。页面支持：
+
+- 选择主机、时间范围、资源类型、预测天数、阈值和分析时长作为上下文。
+- 使用示例问题快速触发全局风险巡检、主机性能诊断、容量规划、成本优化、告警根因、异常检测、知识库排障和巡检总结。
+- 展示后端 Eino 图节点和工具调用时间线。
+- 展示结构化诊断报告，包括风险等级、置信度、关键证据、可能原因、建议步骤和关联实体。
+- 通过历史会话抽屉恢复、删除会话；当前会话会高亮。
+
+独立 `AIAnalysis.vue` 页面已经不再是当前功能入口；相关能力已整合到运维助手。
 
 ## 技术栈
 
-- **Vue 3** - 渐进式 JavaScript 框架
-- **TypeScript** - 类型安全的 JavaScript 超集
-- **Vite** - 下一代前端构建工具
-- **Element Plus** - Vue 3 组件库
-- **ECharts** - 数据可视化图表库
-- **Pinia** - Vue 状态管理
-- **Vue Router** - Vue 官方路由管理器
-- **Axios** - HTTP 客户端
+- Vue 3
+- TypeScript
+- Vite
+- Element Plus
+- ECharts
+- Pinia
+- Vue Router
+- Axios
+- Server-Sent Events
 
 ## 快速开始
 
-### 安装依赖
-
-```bash
-npm install
-# 或
-yarn install
-```
-
-### 开发模式
-
-```bash
-npm run dev
-# 或
-yarn dev
-```
-
-访问 `http://localhost:5173`
-
-### 构建生产版本
-
-```bash
-npm run build
-# 或
-yarn build
-```
-
-构建文件将输出到 `dist` 目录。
-
-### 预览构建结果
-
-```bash
-npm run preview
-# 或
-yarn preview
-```
-
-## 部署
-
-详细的部署说明请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)
-
-### 快速部署
-
-使用提供的部署脚本：
-
-```bash
-# 配置环境变量
-export DEPLOY_USER=your-user
-export DEPLOY_HOST=your-server.com
-
-# 执行部署
-./deploy.sh
-```
-
-更多部署选项：
-
-```bash
-# 查看帮助
-./deploy.sh --help
-
-# 仅构建，不上传
-./deploy.sh --build-only
-
-# 仅上传，不构建
-./deploy.sh --upload-only
-```
-
-### Docker 构建与运行
-
-项目提供 `Dockerfile`，采用多阶段构建：使用 Node 构建静态资源，使用 Nginx 托管。API 请求地址由构建参数 `VITE_API_BASE_URL` 决定，构建时写入前端资源。
-
-**构建镜像：**
-
 ```bash
 cd monitor-frontend
-
-# 与 Backend 同域名部署（前端通过 /api 访问后端）
-docker build -t monitor-frontend:latest .
-
-# 跨域部署：指定 Backend 完整地址
-docker build --build-arg VITE_API_BASE_URL=https://api.example.com/api -t monitor-frontend:latest .
+npm install
+npm run dev
 ```
 
-**运行容器：**
+默认访问地址：
 
-```bash
-docker run -d --name monitor-frontend -p 80:80 monitor-frontend:latest
+```text
+http://localhost:5173
 ```
 
-访问 `http://localhost` 即可。若 Backend 与前端同机部署，需在同一反向代理（如 Nginx）下配置 `/api` 反向代理到 Backend，或先构建时传入正确的 `VITE_API_BASE_URL`，再由前端直连该地址。
-
-**生产环境注意：**
-
-- 同域名部署时推荐使用 `VITE_API_BASE_URL=/api`，再由 Nginx 将 `/api` 代理到 Backend，无需改前端镜像。
-- 若 Backend 域名不同，必须在构建时通过 `--build-arg VITE_API_BASE_URL=...` 传入完整 API 地址，否则前端无法正确请求接口。
-
-## 环境变量
-
-### 开发环境
-
-创建 `.env.development`：
+开发环境 API 地址通过 `.env.development` 配置：
 
 ```bash
 VITE_API_BASE_URL=http://localhost:8080/api
 ```
 
-### 生产环境
-
-创建 `.env.production`：
-
-```bash
-# 同域名部署（推荐）
-VITE_API_BASE_URL=/api
-
-# 跨域部署
-VITE_API_BASE_URL=https://api.your-domain.com/api
-```
-
-## 项目结构
-
-```
-monitor-frontend/
-├── public/                    # 静态资源
-│   ├── vite.svg
-│   └── vitebak.svg
-│
-├── src/
-│   ├── api/                   # API 接口
-│   │   ├── agent.ts          # 主机相关API
-│   │   ├── auth.ts           # 认证相关API
-│   │   ├── metrics.ts        # 指标相关API
-│   │   ├── anomaly.ts        # 异常检测API
-│   │   ├── prediction.ts     # 预测分析API
-│   │   ├── performance.ts    # 性能分析API
-│   │   ├── inspection.ts     # 巡检API
-│   │   ├── knowledge.ts      # 知识库API
-│   │   ├── llm.ts            # LLM配置API
-│   │   ├── logs.ts           # 日志API
-│   │   ├── user.ts           # 用户管理API
-│   │   └── ...
-│   │
-│   ├── components/            # 公共组件
-│   │   ├── NavMenu.vue       # 导航菜单
-│   │   ├── TopNav.vue        # 顶部导航
-│   │   ├── AgentTable.vue    # 主机表格
-│   │   ├── CPUHistoryChart.vue    # CPU历史图表
-│   │   ├── MemoryHistoryChart.vue  # 内存历史图表
-│   │   ├── DiskHistoryChart.vue    # 磁盘历史图表
-│   │   ├── NetworkHistoryChart.vue # 网络历史图表
-│   │   ├── ProcessHistoryChart.vue # 进程历史图表
-│   │   └── ...
-│   │
-│   ├── views/                 # 页面组件
-│   │   ├── Login.vue         # 登录页
-│   │   ├── Dashboard.vue     # 仪表盘
-│   │   ├── Agents.vue         # 主机列表
-│   │   ├── AgentDetail.vue    # 主机详情
-│   │   ├── AIAnalysis.vue    # AI分析（包含多个tab）
-│   │   ├── CrashAnalysis.vue # 宕机分析
-│   │   ├── Logs.vue          # 日志查看
-│   │   ├── Processes.vue     # 进程监控
-│   │   ├── Services.vue      # 服务监控
-│   │   ├── Scripts.vue       # 脚本执行
-│   │   ├── Alerts.vue        # 告警管理
-│   │   ├── Users.vue         # 用户管理
-│   │   ├── Knowledge.vue     # 知识库
-│   │   ├── Inspection.vue    # 智能巡检
-│   │   ├── LLMConfig.vue     # LLM配置
-│   │   ├── BigScreen.vue     # 监控大屏
-│   │   └── components/        # 页面子组件
-│   │       ├── KnowledgeList.vue
-│   │       └── KnowledgeDetailDialog.vue
-│   │
-│   ├── router/                # 路由配置
-│   │   └── index.ts
-│   │
-│   ├── stores/                # Pinia 状态管理
-│   │   ├── user.ts           # 用户状态
-│   │   └── alert.ts          # 告警状态
-│   │
-│   ├── types/                 # TypeScript 类型定义
-│   │   └── index.ts
-│   │
-│   ├── utils/                 # 工具函数
-│   │   └── request.ts        # Axios封装
-│   │
-│   ├── icons/                 # 图标组件
-│   │   ├── CpuIcon.vue
-│   │   ├── MemoryIcon.vue
-│   │   ├── DiskIcon.vue
-│   │   └── NetworkIcon.vue
-│   │
-│   ├── App.vue                # 根组件
-│   ├── main.ts                # 入口文件
-│   └── style.css              # 全局样式
-│
-├── index.html                 # HTML 模板
-├── vite.config.ts             # Vite 配置
-├── tsconfig.json              # TypeScript 配置
-├── tsconfig.app.json          # TypeScript 应用配置
-├── tsconfig.node.json         # TypeScript Node配置
-├── package.json               # 项目配置
-├── nginx.conf.example         # Nginx配置示例
-├── deploy.sh                  # 部署脚本
-├── DEPLOYMENT.md              # 部署文档
-└── README.md                  # 本文档
-```
-
-## 功能特性
-
-### 核心功能
-
-- ✅ **用户认证和授权**: JWT认证，支持用户登录、注册、权限管理
-- ✅ **主机监控和管理**: 主机列表、详情查看、状态监控
-- ✅ **实时指标展示**: CPU、内存、磁盘、网络等指标实时图表
-- ✅ **历史趋势分析**: 指标历史数据查询和趋势图表
-- ✅ **进程监控**: 进程列表、资源使用、历史趋势分析
-- ✅ **服务状态监控**: 系统服务状态查看
-- ✅ **日志查看**: 日志搜索、筛选、分页展示
-- ✅ **脚本执行**: 脚本执行记录查看
-- ✅ **告警管理**: 告警规则配置、告警历史查询
-- ✅ **监控大屏**: 全屏监控大屏展示
-
-### 当前功能补充
-
-- ✅ **GPU监控**: 展示 GPU 主机、GPU 设备、使用率、显存、温度、功耗等指标。
-- ✅ **Docker监控**: 展示容器列表、容器资源趋势，并按主机核心数归一化 CPU 使用展示。
-- ✅ **多核 CPU 展示口径**: 容器和进程 CPU 趋势使用“占主机总 CPU 容量百分比”展示，同时保留原始 CPU 百分比和折算核心数，避免多核主机超过 100% 导致图表失真。
-- ✅ **告警规则多主机**: 告警规则可多选关联主机；不选表示所有主机。
-- ✅ **GPU不可用告警**: 可创建 GPU 不可用规则，显卡设备缺失或采集不到可用设备时触发通知。
-- ✅ **具体上报时间**: 主机列表和在线主机列表展示具体 `YYYY-MM-DD HH:mm:ss`，不再只显示相对时间。
-
-### 智能分析功能
-
-- ✅ **AI智能分析**: 基于LLM的资源使用分析和建议
-- ✅ **容量预测**: 资源使用趋势预测和扩容时间预测
-- ✅ **成本优化**: LLM生成的成本优化建议
-- ✅ **异常检测**: 异常事件检测、分析和LLM智能总结
-- ✅ **性能分析**: 性能瓶颈分析、资源效率评估、优化建议
-- ✅ **宕机分析**: 宕机事件记录、原因分析、趋势统计、批量删除
-- ✅ **知识库**: 故障处理知识库、最佳实践文档、故障案例库、LLM智能搜索
-- ✅ **智能巡检**: 自动化主机巡检、巡检报告生成、LLM生成巡检日报
-
-### UI/UX特性
-
-- ✅ **响应式设计**: 支持桌面、平板、移动设备
-- ✅ **流式输出**: LLM分析结果流式展示
-- ✅ **分页展示**: 列表数据分页和统计信息
-- ✅ **实时更新**: 指标数据实时刷新
-- ✅ **图表可视化**: ECharts图表展示
-
-## 开发指南
-
-### 代码规范
-
-项目使用 ESLint 和 Prettier 进行代码格式化，建议在提交前运行：
-
-```bash
-npm run lint
-```
-
-### 提交规范
-
-建议使用 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
-
-- `feat`: 新功能
-- `fix`: 修复 bug
-- `docs`: 文档更新
-- `style`: 代码格式调整
-- `refactor`: 代码重构
-- `perf`: 性能优化
-- `test`: 测试相关
-- `chore`: 构建/工具相关
-
-## 主要页面说明
-
-### 仪表盘 (Dashboard)
-- 系统概览统计
-- Top指标展示
-- 主机状态概览
-- 在线主机列表使用后端实时在线口径，主机最后上报时间显示为具体时间。
-
-### GPU监控 (GPU)
-- 汇总 GPU 主机数、设备数和平均使用率。
-- 展示 GPU 设备列表，包括型号、厂商、显存、温度、功耗等。
-- 展示 GPU 使用率 Top 图表。
-
-### AI分析 (AIAnalysis)
-包含三个子tab页：
-- **AI智能分析**: 容量预测、成本优化建议
-- **成本分析建议**: 成本优化分析
-- **异常检测**: 异常检测和LLM智能总结
-- **性能分析**: 性能瓶颈分析、资源效率评估、优化建议
-
-### 宕机分析 (CrashAnalysis)
-- 宕机事件列表（支持分页和批量删除）
-- 宕机统计信息
-- 宕机原因分析
-- 宕机趋势图表
-
-### 日志查看 (Logs)
-- 日志列表（支持分页）
-- 按主机和级别筛选
-- 日志搜索
-
-### 知识库 (Knowledge)
-包含三个子tab页：
-- **故障处理知识库**: 故障处理指南管理
-- **最佳实践文档**: 最佳实践文档管理
-- **故障案例库**: 故障案例管理
-- **AI智能搜索**: LLM智能搜索知识库
-
-### 智能巡检 (Inspection)
-- 执行巡检任务
-- 巡检报告列表（支持分页）
-- 巡检报告详情
-- LLM生成巡检日报（流式输出）
-
-### 其他页面
-- **主机管理**: 主机列表和详情
-- **进程监控**: 进程资源使用监控
-- **服务监控**: 系统服务状态
-- **Docker监控**: 容器列表、资源占用和历史趋势
-- **脚本执行**: 脚本执行记录
-- **告警管理**: 告警规则和历史
-- **用户管理**: 用户和权限管理（管理员）
-- **LLM配置**: LLM模型配置管理
-- **监控大屏**: 全屏监控展示
-
-## 告警规则说明
-
-告警管理页面支持规则创建、编辑、启停和历史查询。当前规则类型包括：
-
-- `CPU使用率`
-- `内存使用率`
-- `磁盘使用率`
-- `网络`
-- `主机宕机`
-- `服务端口`
-- `GPU不可用`
-
-主机选择支持多选：
-
-- 不选择主机表示规则应用到所有主机。
-- 选择多个主机时，前端通过 `host_ids` 数组提交给后端。
-- 后端使用 `alert_rule_hosts` 关联表保存多主机关系，避免多个主机 ID 写入单个 `host_id` 字段导致长度超限。
-
-特殊规则说明：
-
-- `主机宕机`：按规则持续时间检查最后上报时间。
-- `服务端口`：指定端口不可访问并持续达到规则时间后触发。
-- `GPU不可用`：最新指标中未检测到 GPU 设备并持续达到规则时间后触发。
-
-这些特殊规则不需要配置条件和阈值，页面会自动隐藏对应表单项。
-
-## 监控大屏说明
-
-监控大屏面向全屏展示场景，主要区域包括：
-
-- 顶部 KPI：总主机、在线、离线、CPU、内存、GPU 设备等。
-- 中部核心区：CPU/内存趋势、主机资源 Top、GPU 资源概览。
-- 底部列表：实时告警、磁盘告警、资源异常等。
-
-大屏已针对 GPU 资源概览可见性做过重构，避免内容被轮播或容器高度遮挡。
-
-## 浏览器支持
-
-- Chrome >= 90
-- Firefox >= 88
-- Safari >= 14
-- Edge >= 90
-
-## 开发注意事项
-
-### API请求
-
-所有API请求通过 `src/utils/request.ts` 封装，自动处理：
-- JWT Token认证
-- 请求拦截和响应拦截
-- 错误处理
-- 超时设置
-
-### 状态管理
-
-使用Pinia进行状态管理：
-- `stores/user.ts`: 用户信息和认证状态
-- `stores/alert.ts`: 告警相关状态
-
-### 路由守卫
-
-在 `router/index.ts` 中配置路由守卫：
-- 认证检查
-- 权限检查（管理员功能）
-- 自动跳转到登录页
-
-### 流式输出
-
-LLM分析结果使用Server-Sent Events (SSE)进行流式输出：
-- 异常分析流式输出
-- 性能分析流式输出
-- 巡检日报流式输出
-- 知识库搜索流式输出
-
-### 分页功能
-
-列表页面支持分页：
-- 宕机分析：支持分页和批量删除
-- 日志查看：支持分页
-- 巡检报告：支持分页
-
-### 构建注意事项
-
-当前项目使用 `vue-tsc -b && vite build` 构建。仓库中仍存在一些历史 TypeScript 严格检查问题，例如未使用变量、部分 API 响应类型不匹配、数组/undefined 类型收窄不足等。后续修改时应优先避免新增类型错误，并逐步清理既有构建问题。
-
-常用验证：
+## 构建
 
 ```bash
 npm run build
 ```
 
-如果构建失败，应先区分是本次修改引入的问题，还是已有历史问题。
+构建产物输出到 `dist/`。当前构建命令会先执行 `vue-tsc -b`，再执行 `vite build`。
+
+预览构建结果：
+
+```bash
+npm run preview
+```
+
+## 项目结构
+
+```text
+monitor-frontend/
+├── src/
+│   ├── api/                 # API 封装
+│   │   ├── opsAssistant.ts  # 运维助手 SSE、会话、报告类型
+│   │   ├── agent.ts
+│   │   ├── metrics.ts
+│   │   ├── alert.ts
+│   │   ├── knowledge.ts
+│   │   ├── inspection.ts
+│   │   └── ...
+│   ├── components/          # 公共组件和导航
+│   ├── views/               # 页面
+│   │   ├── OpsAssistant.vue
+│   │   ├── Dashboard.vue
+│   │   ├── Agents.vue
+│   │   ├── AgentDetail.vue
+│   │   ├── AgentHistory.vue
+│   │   ├── BigScreen.vue
+│   │   ├── Alerts.vue
+│   │   ├── Knowledge.vue
+│   │   ├── Inspection.vue
+│   │   └── components/      # 页面级子组件
+│   ├── router/
+│   ├── stores/
+│   ├── types/
+│   └── utils/
+├── public/
+├── dist/
+├── package.json
+├── vite.config.ts
+└── README.md
+```
+
+## 主要路由
+
+- `/dashboard`：监控面板
+- `/bigscreen`：监控大屏
+- `/agents`：主机管理
+- `/agents/:id`：主机详情
+- `/agents/:id/history`：历史指标
+- `/crash-analysis`：宕机分析
+- `/processes`：进程监控
+- `/docker`：Docker 监控
+- `/gpu`：GPU 监控
+- `/logs`：日志查看
+- `/scripts`：脚本执行
+- `/services`：服务状态
+- `/alerts`：告警管理，管理员可见
+- `/llm-config`：LLM 配置，管理员可见
+- `/ops-assistant`：运维助手
+- `/knowledge`：知识库
+- `/inspection`：智能巡检
+- `/users`：用户管理，管理员可见
+
+## API 与鉴权
+
+所有接口通过 `src/utils/request.ts` 统一封装：
+
+- 自动携带 JWT token。
+- token 过期时尝试刷新。
+- 401 自动跳转登录页。
+- 后端响应统一按 `{ code, message, data }` 解包。
+
+运维助手流式输出使用 `fetch` + SSE，接口为：
+
+```text
+GET /api/v1/ops-assistant/chat/stream
+```
+
+## 部署
+
+Docker 构建：
+
+```bash
+cd monitor-frontend
+docker build -t monitor-frontend:latest .
+```
+
+如果前后端同域部署，默认使用 `/api`：
+
+```bash
+docker run -d --name monitor-frontend -p 80:80 monitor-frontend:latest
+```
+
+如果后端是独立域名，构建时指定：
+
+```bash
+docker build --build-arg VITE_API_BASE_URL=https://api.example.com/api -t monitor-frontend:latest .
+```
+
+更多部署细节见 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+
+## 开发约定
+
+- 新增页面需要同步更新 `src/router/index.ts` 和 `src/components/NavMenu.vue`。
+- 新增 API 先在 `src/api/` 定义类型和方法，不直接在页面里拼请求。
+- 页面使用 Element Plus 组件，图表使用 ECharts。
+- 提交前至少运行：
+
+```bash
+npm run build
+```
+
+## 相关文档
+
+- [Backend README](../monitor-backend/README.md)
+- [Agent README](../monitor-agent/README.md)
+- [部署文档](./DEPLOYMENT.md)
 
 ## 许可证
 
 MIT license
-
-## 联系方式
-
-WX:Li1024_REBOOT
-
-## 相关文档
-
-- [部署文档](./DEPLOYMENT.md) - 详细的部署说明
-- [Backend README](../monitor-backend/README.md) - Backend服务文档
-- [Agent README](../monitor-agent/README.md) - Agent采集代理文档
