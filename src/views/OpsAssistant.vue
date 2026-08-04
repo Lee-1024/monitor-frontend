@@ -8,6 +8,7 @@
             <div class="subtitle">基于监控数据、告警和异常事件生成只读诊断建议</div>
           </div>
           <div class="header-actions">
+            <el-button :icon="Clock" @click="openSessionDrawer">历史会话</el-button>
             <el-button @click="startNewSession">新会话</el-button>
             <el-button :icon="Delete" @click="clearConversation">清空</el-button>
           </div>
@@ -159,20 +160,48 @@
         </el-button>
       </div>
     </el-card>
+
+    <el-drawer v-model="sessionDrawerVisible" title="历史会话" size="360px">
+      <div class="session-drawer">
+        <el-button class="refresh-sessions" :loading="sessionsLoading" @click="loadSessions">
+          刷新
+        </el-button>
+        <el-empty v-if="!sessionsLoading && sessions.length === 0" description="暂无历史会话" />
+        <div v-else class="session-list">
+          <button
+            v-for="session in sessions"
+            :key="session.id"
+            class="session-item"
+            type="button"
+            @click="restoreSession(session.id)"
+          >
+            <span class="session-title">{{ session.title }}</span>
+            <span class="session-summary">{{ session.summary || '暂无摘要' }}</span>
+            <span class="session-meta">
+              <span>{{ formatSessionTime(session.updatedAt) }}</span>
+              <span v-if="session.hostName || session.hostId">{{ session.hostName || session.hostId }}</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
-import { Delete, Promotion } from '@element-plus/icons-vue'
+import { Clock, Delete, Promotion } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { getAgents } from '@/api/agent'
 import { sortAgents } from '@/utils/agentSort'
 import { formatMarkdown } from '@/utils/markdown'
 import {
   deleteOpsAssistantSession,
+  getOpsAssistantSession,
+  listOpsAssistantSessions,
   streamOpsAssistant,
   type OpsAssistantDiagnosisReport,
+  type OpsAssistantSession,
   type OpsAssistantTimelineEvent,
   type OpsAssistantToolCall
 } from '@/api/opsAssistant'
@@ -193,6 +222,15 @@ interface ChatMessage {
   report?: OpsAssistantDiagnosisReport
 }
 
+interface SessionListItem {
+  id: string
+  title: string
+  summary: string
+  updatedAt: string
+  hostId: string
+  hostName: string
+}
+
 const agents = ref<AgentOption[]>([])
 const selectedHost = ref('')
 const timeRange = ref<[string, string] | null>(null)
@@ -209,6 +247,9 @@ const sessionId = ref('')
 const statusText = ref('正在处理...')
 const activeAssistantMessageId = ref('')
 const messageListRef = ref<HTMLElement | null>(null)
+const sessionDrawerVisible = ref(false)
+const sessions = ref<SessionListItem[]>([])
+const sessionsLoading = ref(false)
 let cancelStream: (() => void) | null = null
 let renderFrame: number | null = null
 let pendingContent = ''
@@ -270,10 +311,92 @@ const loadAgents = async () => {
   }
 }
 
+const normalizeSession = (session: OpsAssistantSession): SessionListItem => {
+  const context = (session.context || session.Context || {}) as Record<string, any>
+  return {
+    id: session.session_id || session.SessionID || '',
+    title: session.title || session.Title || '未命名会话',
+    summary: session.summary || session.Summary || '',
+    updatedAt: session.updated_at || session.UpdatedAt || '',
+    hostId: context.host_id || context.HostID || '',
+    hostName: context.host_name || context.HostName || ''
+  }
+}
+
+const loadSessions = async () => {
+  sessionsLoading.value = true
+  try {
+    const res = await listOpsAssistantSessions()
+    sessions.value = (res.data || []).map(normalizeSession).filter((session) => session.id)
+  } catch (error) {
+    console.error('加载运维助手会话失败:', error)
+  } finally {
+    sessionsLoading.value = false
+  }
+}
+
+const openSessionDrawer = () => {
+  sessionDrawerVisible.value = true
+  loadSessions()
+}
+
+const formatSessionTime = (value: string) => {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 const scrollToBottom = async () => {
   await nextTick()
   if (messageListRef.value) {
     messageListRef.value.scrollTop = messageListRef.value.scrollHeight
+  }
+}
+
+const normalizeSessionMessages = (session: OpsAssistantSession): ChatMessage[] => {
+  const rawMessages = session.messages || session.Messages || []
+  return rawMessages
+    .map((message, index) => {
+      const role = message.role || message.Role
+      const content = message.content || message.Content || ''
+      if ((role !== 'user' && role !== 'assistant') || !content) return null
+      return {
+        id: `${role}-${message.created_at || message.CreatedAt || index}`,
+        role,
+        content
+      } as ChatMessage
+    })
+    .filter((message): message is ChatMessage => Boolean(message))
+}
+
+const restoreSession = async (id: string) => {
+  if (loading.value) {
+    ElMessage.warning('请先停止当前生成')
+    return
+  }
+  try {
+    const res = await getOpsAssistantSession(id)
+    const session = res.data
+    const normalized = normalizeSession(session)
+    const context = (session.context || session.Context || {}) as Record<string, any>
+    sessionId.value = normalized.id
+    selectedHost.value = normalized.hostId
+    const range = context.time_range || context.TimeRange
+    timeRange.value = range?.from && range?.to ? [range.from, range.to] : null
+    messages.value = normalizeSessionMessages(session)
+    toolCalls.value = []
+    errorMessage.value = ''
+    activeAssistantMessageId.value = ''
+    sessionDrawerVisible.value = false
+    scrollToBottom()
+  } catch (error: any) {
+    ElMessage.error(error.message || '恢复会话失败')
   }
 }
 
@@ -462,6 +585,7 @@ const send = () => {
       if (event.type === 'done') {
         if (event.session_id) sessionId.value = event.session_id
         completeRunningTimelineEvents()
+        loadSessions()
         streamDone = true
         if (!pendingContent) {
           loading.value = false
@@ -515,7 +639,6 @@ const resetConversationState = () => {
   statusText.value = '正在处理...'
   activeAssistantMessageId.value = ''
   loading.value = false
-  ElMessage.success('会话已清空')
 }
 
 const startNewSession = () => {
@@ -529,6 +652,7 @@ const clearConversation = async () => {
   if (currentSessionId) {
     try {
       await deleteOpsAssistantSession(currentSessionId)
+      await loadSessions()
     } catch (error) {
       console.error('delete ops assistant session failed:', error)
     }
@@ -550,6 +674,7 @@ const stopStream = () => {
 
 onMounted(() => {
   loadAgents()
+  loadSessions()
 })
 
 onUnmounted(() => {
@@ -583,6 +708,12 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .title {
@@ -876,6 +1007,67 @@ onUnmounted(() => {
   grid-template-columns: 1fr auto;
   gap: 12px;
   align-items: end;
+}
+
+.session-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.refresh-sessions {
+  align-self: flex-start;
+}
+
+.session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.session-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s;
+
+  &:hover {
+    border-color: #409eff;
+    box-shadow: 0 4px 14px rgba(64, 158, 255, 0.12);
+  }
+}
+
+.session-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.session-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #606266;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.session-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 
 @media (max-width: 768px) {

@@ -17,16 +17,39 @@ export interface OpsAssistantChatRequest {
 }
 
 export interface OpsAssistantSession {
-  session_id: string
-  user_id: number
+  session_id?: string
+  SessionID?: string
+  user_id?: number
+  UserID?: number
   title: string
+  Title?: string
   summary: string
-  updated_at: string
+  Summary?: string
+  updated_at?: string
+  UpdatedAt?: string
   context?: {
     host_id?: string
     host_name?: string
     last_intent?: string
+    time_range?: OpsAssistantTimeRange
   }
+  Context?: {
+    HostID?: string
+    HostName?: string
+    LastIntent?: string
+    TimeRange?: OpsAssistantTimeRange
+  }
+  messages?: OpsAssistantSessionMessage[]
+  Messages?: OpsAssistantSessionMessage[]
+}
+
+export interface OpsAssistantSessionMessage {
+  role?: string
+  Role?: string
+  content?: string
+  Content?: string
+  created_at?: string
+  CreatedAt?: string
 }
 
 export interface OpsAssistantToolCall {

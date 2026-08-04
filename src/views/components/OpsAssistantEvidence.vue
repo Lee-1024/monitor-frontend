@@ -1,6 +1,6 @@
 <template>
   <div class="report-section">
-    <div class="section-title">Evidence</div>
+    <div class="section-title">关键证据</div>
     <div v-for="item in items" :key="`${item.source}-${item.text}`" class="evidence-item">
       <el-link v-if="knowledgeHref(item.source)" type="primary" :href="knowledgeHref(item.source)">
         {{ item.source }}
