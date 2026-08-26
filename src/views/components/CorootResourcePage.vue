@@ -57,7 +57,7 @@ const rows = computed(() => {
     ]
     return entities
   }
-  const collection = props.resource === 'applications' ? 'applications' : props.resource === 'incidents' ? 'incidents' : props.resource === 'nodes' ? 'nodes' : 'items'
+  const collection = props.resource === 'applications' ? 'applications' : props.resource === 'incidents' ? 'incidents' : props.resource === 'nodes' ? 'nodes' : props.resource === 'alerts' ? 'alerts' : 'items'
   return corootRows(data, collection).map((row: any) => {
     const normalized: Record<string, unknown> = { ...row }
     for (const column of props.columns) normalized[column.key] = corootField(row, column.key, `metrics.${column.key}`, `summary.${column.key}`)
