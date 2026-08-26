@@ -39,6 +39,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/observability/applications', name: 'ObservabilityApplications', component: () => import('@/views/ObservabilityApplications.vue'), meta: { title: '应用列表', requiresAuth: true } },
   { path: '/observability/topology', name: 'ObservabilityTopology', component: () => import('@/views/ObservabilityTopology.vue'), meta: { title: '服务拓扑', requiresAuth: true } },
   { path: '/observability/incidents', name: 'ObservabilityIncidents', component: () => import('@/views/ObservabilityIncidents.vue'), meta: { title: '事故中心', requiresAuth: true } },
+  { path: '/observability/alerts', name: 'ObservabilityAlerts', component: () => import('@/views/ObservabilityAlerts.vue'), meta: { title: 'Coroot告警', requiresAuth: true } },
   { path: '/observability/nodes', name: 'ObservabilityNodes', component: () => import('@/views/ObservabilityNodes.vue'), meta: { title: '节点健康', requiresAuth: true } },
   {
     path: '/agents/:id/history',

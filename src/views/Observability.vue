@@ -65,7 +65,7 @@ const links = [
   { title: '服务拓扑', description: '查看服务调用关系', path: '/observability/topology', icon: Connection },
   { title: '事故中心', description: '查看活动和历史事故', path: '/observability/incidents', icon: Warning },
   { title: '节点健康', description: '查看节点资源和 Agent', path: '/observability/nodes', icon: Monitor },
-  { title: '告警摘要', description: '查看 Coroot 告警', path: '/observability/incidents', icon: Bell }
+  { title: '告警摘要', description: '查看 Coroot 告警', path: '/observability/alerts', icon: Bell }
 ]
 
 async function loadOverview() {
