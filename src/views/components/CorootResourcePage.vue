@@ -3,7 +3,15 @@
     <div class="page-header"><div class="header-main"><el-button class="back-button" :icon="ArrowLeft" link @click="goBack">返回</el-button><div><h2>{{ title }}</h2><p>{{ description }}</p></div></div><el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button></div>
     <el-alert v-if="error" :title="error" type="warning" :closable="false" show-icon />
     <el-card shadow="never"><el-table v-loading="loading" :data="rows" stripe empty-text="暂无 Coroot 数据">
-      <el-table-column v-for="column in columns" :key="column.key" :prop="column.key" :label="column.label" min-width="140" />
+      <el-table-column v-for="column in columns" :key="column.key" :prop="column.key" :label="column.label" min-width="140">
+        <template #default="scope">
+          <el-tag v-if="isStatusColumn(column.key)" :type="statusType(scope.row[column.key])" effect="light">
+            <el-icon><component :is="statusIcon(scope.row[column.key])" /></el-icon>
+            {{ translateStatus(scope.row[column.key]) }}
+          </el-tag>
+          <span v-else>{{ translateValue(scope.row[column.key], column.key) }}</span>
+        </template>
+      </el-table-column>
     </el-table></el-card>
     <div class="resource-footer"><span>数据时间：{{ checkedAt || '暂无' }}</span><el-button v-if="deepLink" link type="primary" @click="openCoroot">打开 Coroot 详情</el-button></div>
   </div>
@@ -11,7 +19,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
+import { ArrowLeft, CircleCheck, CircleClose, InfoFilled, Refresh, WarningFilled } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { corootField, corootRows, formatCorootDuration, formatCorootTime, getCorootResource, parseCorootApplicationID, type CorootResponse } from '@/api/coroot'
 
@@ -64,11 +72,15 @@ const rows = computed(() => {
     }
     if (props.resource === 'alerts') {
       normalized.id = row.id || row.key || '-'
-      normalized.application = typeof row.application === 'object' ? row.application.name || row.application.id || '-' : row.application || row.application_id || '-'
+      normalized.application = typeof row.application === 'object' ? row.application.name || row.application.id || '-' : row.application_id ? parseCorootApplicationID(row.application_id).name : row.application || '-'
       normalized.summary = row.summary || row.short_description || row.description || row.message || '-'
       normalized.severity = row.severity || row.status || '-'
+      normalized.report = row.report || row.rule_name || '-'
+      normalized.detail = Array.isArray(row.details) ? row.details.map((item: any) => `${item.name || ''}: ${item.value || ''}`).join('; ') : '-'
       normalized.opened_at = formatCorootTime(row.opened_at || row.created_at)
       normalized.resolved_at = formatCorootTime(row.resolved_at)
+      normalized.duration = formatCorootDuration(row.duration)
+      normalized.status = row.resolved_at || row.manually_resolved_at ? '已恢复' : row.suppressed ? '已抑制' : '触发中'
     }
     if (props.resource === 'nodes' && row.name) {
       normalized.cluster_name = row.cluster_name || row.cluster_id || '-'
@@ -83,7 +95,12 @@ const rows = computed(() => {
       const parsed = parseCorootApplicationID(row.id)
       normalized.name = parsed.name
       normalized.namespace = parsed.namespace
-      normalized.type = normalized.type === '-' ? parsed.kind : normalized.type
+      normalized.type = row.type?.name || parsed.kind
+      normalized.status = row.status?.status || row.status || '-'
+      for (const key of ['errors', 'latency', 'upstreams', 'instances', 'restarts', 'cpu', 'memory', 'disk_io_load', 'disk_usage', 'network', 'dns', 'logs']) {
+        const metric = row[key]
+        normalized[key] = metric && typeof metric === 'object' ? metric.value || metric.status || '-' : metric ?? '-'
+      }
     } else if (normalized.name === '-' && row.id) normalized.name = row.id
     return normalized
   })
@@ -94,6 +111,28 @@ function formatNetwork(value: unknown) {
   if (!Number.isFinite(bytes)) return '-'
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB/s`
   return `${(bytes / 1024 / 1024).toFixed(1)} MB/s`
+}
+function isStatusColumn(key: string) { return ['status', 'severity', 'state'].includes(key) }
+function normalizedStatus(value: unknown) { return String(value ?? '').toLowerCase() }
+function translateStatus(value: unknown) {
+  const status = normalizedStatus(value)
+  return ({ ok: '正常', up: '在线', warning: '警告', critical: '严重', error: '异常', down: '离线', resolved: '已恢复', firing: '触发中', suppressed: '已抑制', 'ai disabled': '未启用智能分析', '已发现': '已发现' } as Record<string, string>)[status] || String(value || '未知')
+}
+function statusType(value: unknown) {
+  const status = normalizedStatus(value)
+  if (['ok', 'up', 'resolved', '已发现'].includes(status)) return 'success'
+  if (['warning', 'firing', 'suppressed'].includes(status)) return 'warning'
+  if (['critical', 'error', 'down'].includes(status)) return 'danger'
+  return 'info'
+}
+function statusIcon(value: unknown) {
+  const type = statusType(value)
+  return type === 'success' ? CircleCheck : type === 'danger' ? CircleClose : type === 'warning' ? WarningFilled : InfoFilled
+}
+function translateValue(value: unknown, key: string) {
+  if (key === 'type' && typeof value === 'string') return ({ python: 'Python', java: 'Java', go: 'Go', nodejs: 'Node.js', unknown: '未知' } as Record<string, string>)[value.toLowerCase()] || value
+  if (key === 'severity') return translateStatus(value)
+  return value === undefined || value === null || value === '' ? '-' : String(value)
 }
 const checkedAt = computed(() => response.value?.checked_at ? new Date(response.value.checked_at).toLocaleString() : '')
 
