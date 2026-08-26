@@ -11,6 +11,10 @@
         <el-icon><Monitor /></el-icon>
         <template #title>监控面板</template>
       </el-menu-item>
+      <el-menu-item index="/observability">
+        <el-icon><Connection /></el-icon>
+        <template #title>应用可观测性</template>
+      </el-menu-item>
       <el-menu-item index="/bigscreen">
         <el-icon><Monitor /></el-icon>
         <template #title>监控大屏</template>
