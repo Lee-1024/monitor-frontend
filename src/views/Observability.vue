@@ -40,7 +40,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell, Connection, Grid, Monitor, Refresh, Warning } from '@element-plus/icons-vue'
-import { getCorootOverview, type CorootResponse } from '@/api/coroot'
+import { corootRows, getCorootOverview, type CorootResponse } from '@/api/coroot'
 
 const router = useRouter()
 const loading = ref(false)
@@ -50,18 +50,22 @@ const response = ref<CorootResponse | null>(null)
 const available = computed(() => response.value?.available === true)
 const checkedAt = computed(() => response.value?.checked_at ? new Date(response.value.checked_at).toLocaleString() : '')
 const payload = computed(() => (response.value?.data || {}) as Record<string, unknown>)
+const context = computed(() => (payload.value.context || payload.value) as any)
+const applications = computed(() => corootRows(payload.value, 'applications'))
+const alertCount = computed(() => Number((context.value.alerts || {}).warning || 0) + Number((context.value.alerts || {}).critical || 0))
+const incidentCount = computed(() => Number((context.value.incidents || {}).application || 0))
 const summaryCards = computed(() => [
-  { label: '应用数量', value: payload.value.applications ?? payload.value.application_count ?? '-' },
-  { label: '严重事故', value: payload.value.critical_incidents ?? payload.value.critical ?? '-' },
-  { label: '警告事故', value: payload.value.warning_incidents ?? payload.value.warning ?? '-' },
-  { label: '异常节点', value: payload.value.unhealthy_nodes ?? payload.value.nodes_unhealthy ?? '-' }
+  { label: '应用数量', value: applications.value.length || payload.value.application_count || '-' },
+  { label: '事故数量', value: incidentCount.value || '-' },
+  { label: '告警数量', value: alertCount.value || '-' },
+  { label: '搜索应用', value: applications.value.length || '-' }
 ])
 const links = [
   { title: '应用列表', description: '查看应用健康和上下游', path: '/observability/applications', icon: Grid },
   { title: '服务拓扑', description: '查看服务调用关系', path: '/observability/topology', icon: Connection },
   { title: '事故中心', description: '查看活动和历史事故', path: '/observability/incidents', icon: Warning },
   { title: '节点健康', description: '查看节点资源和 Agent', path: '/observability/nodes', icon: Monitor },
-  { title: '告警摘要', description: '查看 Coroot 告警', path: '/alerts', icon: Bell }
+  { title: '告警摘要', description: '查看 Coroot 告警', path: '/observability/incidents', icon: Bell }
 ]
 
 async function loadOverview() {
