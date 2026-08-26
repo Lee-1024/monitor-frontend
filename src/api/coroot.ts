@@ -38,9 +38,28 @@ export function corootRows(payload: any, collection: string): any[] {
 export function corootField(row: any, ...keys: string[]) {
   for (const key of keys) {
     const value = key.split('.').reduce((current, part) => current?.[part], row)
-    if (value !== undefined && value !== null && value !== '') return value
+    if (value !== undefined && value !== null && value !== '') return formatCorootValue(value)
   }
   return '-'
+}
+
+export function formatCorootValue(value: any): string | number {
+  if (typeof value === 'string' || typeof value === 'number') return value
+  if (typeof value === 'boolean') return value ? '是' : '否'
+  if (Array.isArray(value)) return value.map(item => formatCorootValue(item)).join(', ')
+  if (value && typeof value === 'object') {
+    if (value.name) return String(value.name)
+    if (value.status) return String(value.status)
+    if (value.value !== undefined) return formatCorootValue(value.value)
+    return Object.entries(value).map(([key, item]) => `${key}: ${formatCorootValue(item)}`).join('; ')
+  }
+  return '-'
+}
+
+export function parseCorootApplicationID(id: unknown) {
+  const parts = String(id || '').split(':')
+  if (parts.length < 4) return { name: String(id || '-'), namespace: '-', kind: '-' }
+  return { name: parts.slice(3).join(':'), namespace: parts[1] || '-', kind: parts[2] || '-' }
 }
 
 export function getCorootOverview() {

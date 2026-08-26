@@ -13,7 +13,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
-import { corootField, corootRows, getCorootResource, type CorootResponse } from '@/api/coroot'
+import { corootField, corootRows, getCorootResource, parseCorootApplicationID, type CorootResponse } from '@/api/coroot'
 
 const props = defineProps<{ title: string; description: string; resource: string; columns: Array<{ key: string; label: string }>; deepLink?: string }>()
 const router = useRouter()
@@ -23,11 +23,37 @@ const response = ref<CorootResponse | null>(null)
 const payload = computed(() => response.value?.data as any)
 const rows = computed(() => {
   const data = payload.value
+  if (props.resource === 'topology') {
+    const applications = corootRows(data, 'map')
+    const edges: any[] = []
+    for (const app of applications) {
+      for (const link of [...(app.upstreams || []), ...(app.downstreams || [])]) {
+        edges.push({
+          source: app.id || app.name || '-',
+          target: link.application_id || link.id || link.name || '-',
+          request_rate: link.request_rate ?? link.rps ?? link.requests,
+          latency: link.latency ?? link.rtt,
+          error_rate: link.error_rate,
+          failed_connections: link.failed_connections,
+        })
+      }
+    }
+    if (edges.length) return edges.map(row => {
+      const normalized: Record<string, unknown> = { ...row }
+      for (const column of props.columns) normalized[column.key] = corootField(row, column.key)
+      return normalized
+    })
+  }
   const collection = props.resource === 'applications' ? 'applications' : props.resource === 'incidents' ? 'incidents' : props.resource === 'nodes' ? 'nodes' : 'items'
   return corootRows(data, collection).map((row: any) => {
     const normalized: Record<string, unknown> = { ...row }
     for (const column of props.columns) normalized[column.key] = corootField(row, column.key, `metrics.${column.key}`, `summary.${column.key}`)
-    if (normalized.name === '-' && row.id) normalized.name = row.id
+    if (props.resource === 'applications' && row.id) {
+      const parsed = parseCorootApplicationID(row.id)
+      normalized.name = parsed.name
+      normalized.namespace = parsed.namespace
+      normalized.type = normalized.type === '-' ? parsed.kind : normalized.type
+    } else if (normalized.name === '-' && row.id) normalized.name = row.id
     return normalized
   })
 })
