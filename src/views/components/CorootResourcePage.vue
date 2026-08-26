@@ -140,7 +140,10 @@ async function load() {
   loading.value = true
   error.value = ''
   try {
-    const result = await getCorootResource(props.resource, { page: 1, page_size: 100 })
+    const params: Record<string, string | number | boolean> = props.resource === 'alerts'
+      ? { limit: 50, offset: 0, include_resolved: false, sort_by: 'opened_at', sort_desc: true }
+      : { page: 1, page_size: 100 }
+    const result = await getCorootResource(props.resource, params)
     response.value = result.data
     if (result.data.error) error.value = result.data.error
   } catch (err: any) { error.value = err?.response?.data?.message || 'Coroot 暂时不可用' } finally { loading.value = false }
