@@ -3,12 +3,16 @@
     <div class="page-header"><div class="header-main"><el-button class="back-button" :icon="ArrowLeft" link @click="goBack">返回</el-button><div><h2>{{ title }}</h2><p>{{ description }}</p></div></div><el-button :icon="Refresh" :loading="loading" @click="load">刷新</el-button></div>
     <el-alert v-if="error" :title="error" type="warning" :closable="false" show-icon />
     <el-card shadow="never"><el-table v-loading="loading" :data="rows" stripe empty-text="暂无 Coroot 数据">
-      <el-table-column v-for="column in columns" :key="column.key" :prop="column.key" :label="column.label" min-width="140">
+      <el-table-column v-for="column in columns" :key="column.key" :prop="column.key" :label="column.label" :width="column.width" :min-width="column.width ? undefined : 140">
         <template #default="scope">
-          <el-tag v-if="isStatusColumn(column.key)" :type="statusType(scope.row[column.key])" effect="light">
+          <el-tag v-if="isStatusColumn(column.key)" class="status-tag" :type="statusType(scope.row[column.key])" effect="light">
             <el-icon><component :is="statusIcon(scope.row[column.key])" /></el-icon>
             {{ translateStatus(scope.row[column.key]) }}
           </el-tag>
+          <el-tooltip v-else-if="column.key === 'detail'" effect="light" placement="top-start" :show-after="300">
+            <template #content><pre class="detail-tooltip">{{ translateValue(scope.row[column.key], column.key) }}</pre></template>
+            <span class="detail-preview">{{ translateValue(scope.row[column.key], column.key) }}</span>
+          </el-tooltip>
           <span v-else>{{ translateValue(scope.row[column.key], column.key) }}</span>
         </template>
       </el-table-column>
@@ -23,7 +27,7 @@ import { ArrowLeft, CircleCheck, CircleClose, InfoFilled, Refresh, WarningFilled
 import { useRouter } from 'vue-router'
 import { corootField, corootRows, formatCorootDuration, formatCorootTime, getCorootResource, parseCorootApplicationID, type CorootResponse } from '@/api/coroot'
 
-const props = defineProps<{ title: string; description: string; resource: string; columns: Array<{ key: string; label: string }>; deepLink?: string }>()
+const props = defineProps<{ title: string; description: string; resource: string; columns: Array<{ key: string; label: string; width?: number }>; deepLink?: string }>()
 const router = useRouter()
 const loading = ref(false)
 const error = ref('')
@@ -64,7 +68,8 @@ const rows = computed(() => {
     if (props.resource === 'incidents') {
       normalized.id = row.key || row.id || '-'
       normalized.application = parseCorootApplicationID(row.application_id).name
-      normalized.description = row.short_description || '-'
+      normalized.description = translateIncidentDescription(row.short_description || row.description)
+      normalized.severity = translateIncidentSeverity(row.severity || row.status)
       normalized.impact = row.impact === undefined ? '-' : `${Number(row.impact).toFixed(2)}%`
       normalized.opened_at = formatCorootTime(row.opened_at)
       normalized.resolved_at = formatCorootTime(row.resolved_at)
@@ -118,11 +123,28 @@ function translateStatus(value: unknown) {
   const status = normalizedStatus(value)
   return ({ ok: '正常', up: '在线', warning: '警告', critical: '严重', error: '异常', down: '离线', resolved: '已恢复', firing: '触发中', suppressed: '已抑制', 'ai disabled': '未启用智能分析', '已发现': '已发现' } as Record<string, string>)[status] || String(value || '未知')
 }
+function translateIncidentDescription(value: unknown) {
+  const text = String(value || '-').trim()
+  const translations: Record<string, string> = {
+    'High latency': '高延迟',
+    'Elevated error rate': '错误率升高',
+    'SLO violation': 'SLO 违规',
+    'New error in the logs': '日志中出现新错误',
+    'new error in the logs': '日志中出现新错误',
+    'Failed connections': '连接失败',
+    'Crash': '服务崩溃',
+  }
+  return translations[text] || text
+}
+function translateIncidentSeverity(value: unknown) {
+  const text = String(value || '-').toLowerCase()
+  return ({ critical: '严重', warning: '警告', error: '异常', ok: '正常' } as Record<string, string>)[text] || String(value || '-')
+}
 function statusType(value: unknown) {
   const status = normalizedStatus(value)
-  if (['ok', 'up', 'resolved', '已发现'].includes(status)) return 'success'
-  if (['warning', 'firing', 'suppressed'].includes(status)) return 'warning'
-  if (['critical', 'error', 'down'].includes(status)) return 'danger'
+  if (['ok', 'up', 'resolved', '已发现', '正常'].includes(status)) return 'success'
+  if (['warning', 'firing', 'suppressed', '警告'].includes(status)) return 'warning'
+  if (['critical', 'error', 'down', '严重', '异常'].includes(status)) return 'danger'
   return 'info'
 }
 function statusIcon(value: unknown) {
@@ -161,4 +183,8 @@ onMounted(load)
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }.header-main { display: flex; gap: 12px; align-items: flex-start; }.back-button { margin-top: 1px; }
 .page-header h2 { margin: 0 0 6px; color: #1f2937; }.page-header p { margin: 0; color: #909399; }
 .resource-footer { color: #909399; display: flex; justify-content: space-between; padding: 14px 2px; font-size: 12px; }
+.status-tag { min-width: 64px; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; line-height: 28px; }
+.status-tag .el-icon { margin: 0; font-size: 14px; }
+.detail-preview { display: -webkit-box; overflow: hidden; white-space: normal; word-break: break-word; line-height: 20px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.detail-tooltip { max-width: 620px; max-height: 360px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; line-height: 20px; }
 </style>
