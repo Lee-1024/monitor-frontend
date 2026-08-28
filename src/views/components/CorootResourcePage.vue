@@ -127,6 +127,8 @@ function translateIncidentDescription(value: unknown) {
   const text = String(value || '-').trim()
   const translations: Record<string, string> = {
     'High latency': '高延迟',
+    'High latency and errors': '高延迟和错误',
+    'High latency & errors': '高延迟和错误',
     'Elevated error rate': '错误率升高',
     'SLO violation': 'SLO 违规',
     'New error in the logs': '日志中出现新错误',
@@ -184,7 +186,8 @@ onMounted(load)
 .page-header h2 { margin: 0 0 6px; color: #1f2937; }.page-header p { margin: 0; color: #909399; }
 .resource-footer { color: #909399; display: flex; justify-content: space-between; padding: 14px 2px; font-size: 12px; }
 .status-tag { min-width: 64px; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; line-height: 28px; }
-.status-tag .el-icon { margin: 0; font-size: 14px; }
+.status-tag :deep(.el-tag__content) { display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; line-height: 1; }
+.status-tag :deep(.el-icon) { flex: 0 0 auto; margin: 0; font-size: 14px; }
 .detail-preview { display: -webkit-box; overflow: hidden; white-space: normal; word-break: break-word; line-height: 20px; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
 .detail-tooltip { max-width: 620px; max-height: 360px; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word; font: inherit; line-height: 20px; }
 </style>
