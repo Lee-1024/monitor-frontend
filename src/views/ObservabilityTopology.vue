@@ -15,7 +15,7 @@ let chart: echarts.ECharts | undefined
 const statusColor = (status: string) => ({ critical: '#ef4444', error: '#ef4444', warning: '#f59e0b', ok: '#22c55e', up: '#22c55e' }[status] || '#94a3b8')
 const statusText = (status: string) => ({ critical: '严重', error: '错误', warning: '警告', ok: '正常', up: '在线', unknown: '未知' }[status] || status || '未知')
 const nodeName = (id: string) => parseCorootApplicationID(id).name
-const edgeStyle = (status: string) => ({ color: status === 'critical' || status === 'error' ? '#ef4444' : '#aebdce', type: status === 'unknown' ? 'dashed' : 'solid', width: status === 'critical' || status === 'error' ? 1.8 : 1.2, opacity: status === 'unknown' ? 0.72 : 0.9 })
+const edgeStyle = (status: string) => ({ color: status === 'critical' || status === 'error' ? '#ef4444' : status === 'warning' ? '#f59e0b' : status === 'unknown' ? '#aebdce' : '#22c55e', type: status === 'unknown' ? 'dashed' : 'solid', width: status === 'critical' || status === 'error' ? 1.8 : 1.2, opacity: status === 'unknown' ? 0.72 : 0.9 })
 
 function renderGraph(items: any[]) {
   if (!chartRef.value) return
