@@ -14,21 +14,25 @@ let chart: echarts.ECharts | undefined
 
 const statusColor = (status: string) => ({ critical: '#ef4444', error: '#ef4444', warning: '#f59e0b', ok: '#22c55e', up: '#22c55e' }[status] || '#94a3b8')
 const statusText = (status: string) => ({ critical: '严重', error: '错误', warning: '警告', ok: '正常', up: '在线', unknown: '未知' }[status] || status || '未知')
+const nodeName = (id: string) => parseCorootApplicationID(id).name
 
 function renderGraph(items: any[]) {
   if (!chartRef.value) return
   chart?.dispose(); chart = echarts.init(chartRef.value)
   const nodeMap = new Map<string, any>(); const edges: any[] = []; const edgeKeys = new Set<string>()
-  const addNode = (id: string, status = 'unknown', category = 'external') => { if (id && !nodeMap.has(id)) nodeMap.set(id, { id, name: parseCorootApplicationID(id), status, category }) }
+  const addNode = (id: string, status = 'unknown', category = 'external') => { if (id && !nodeMap.has(id)) nodeMap.set(id, { id, name: nodeName(id), status, category }) }
   for (const item of items) {
     const id = String(item.id || ''); if (!id) continue
-    nodeMap.set(id, { id, name: parseCorootApplicationID(id), status: item.status || 'unknown', category: item.category || 'application' })
+    nodeMap.set(id, { id, name: nodeName(id), status: item.status || 'unknown', category: item.category || 'application' })
     for (const relation of item.upstreams || []) { const target = String(relation.id || ''); addNode(target, relation.status); const key = `${target}->${id}`; if (target && !edgeKeys.has(key)) { edgeKeys.add(key); edges.push({ source: target, target: id, stats: relation.stats || [] }) } }
     for (const relation of item.downstreams || []) { const target = String(relation.id || ''); addNode(target, relation.status); const key = `${id}->${target}`; if (target && !edgeKeys.has(key)) { edgeKeys.add(key); edges.push({ source: id, target, stats: relation.stats || [] }) } }
   }
-  const nodes = [...nodeMap.values()].map((node) => ({ ...node, symbolSize: node.category === 'application' ? 38 : 30, itemStyle: { color: statusColor(node.status), borderColor: '#fff', borderWidth: 2 } }))
+  const nodes = [...nodeMap.values()].map((node) => ({ ...node, itemStyle: { color: '#fff', borderColor: statusColor(node.status), borderWidth: 2, borderRadius: 4 } }))
   hasData.value = nodes.length > 0
-  chart.setOption({ animationDuration: 500, tooltip: { formatter: (params: any) => params.dataType === 'edge' ? `${params.data.source} -> ${params.data.target}<br/>${(params.data.stats || []).join('<br/>')}` : `<b>${params.data.name}</b><br/>状态：${statusText(params.data.status)}` }, series: [{ type: 'graph', layout: 'force', roam: true, draggable: true, data: nodes, links: edges, force: { repulsion: 260, edgeLength: 150, gravity: 0.08 }, label: { show: true, position: 'right', formatter: '{b}', color: '#334155', fontSize: 13 }, lineStyle: { color: '#94a3b8', width: 1.5, curveness: 0.08 }, edgeSymbol: ['none', 'arrow'], edgeSymbolSize: 8 }] })
+  chart.setOption({
+    animationDuration: 600,
+    tooltip: { borderColor: '#dbe4ee', formatter: (params: any) => params.dataType === 'edge' ? `${params.data.source} -> ${params.data.target}<br/>${(params.data.stats || []).join('<br/>') || '暂无调用统计'}` : `<b>${params.data.name}</b><br/>状态：${statusText(params.data.status)}<br/>类型：${params.data.category === 'application' ? '应用' : '外部服务'}` },
+    series: [{ type: 'graph', layout: 'force', roam: true, draggable: true, data: nodes, links: edges, force: { repulsion: 420, edgeLength: 190, gravity: 0.04, friction: 0.15 }, symbol: 'roundRect', symbolSize: (_value: any, params: any) => params.data.category === 'application' ? [180, 42] : [150, 38], label: { show: true, position: 'insideLeft', padding: [0, 10, 0, 12], formatter: '{b}', color: '#1677d2', fontSize: 14, fontWeight: 500 }, lineStyle: { color: '#aebdce', width: 1.2, opacity: 0.78, curveness: 0.12 }, edgeSymbol: ['none', 'arrow'], edgeSymbolSize: 8 }] })
 }
 
 async function load() {
