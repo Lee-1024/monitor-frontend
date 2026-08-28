@@ -180,7 +180,7 @@ onMounted(load)
 
 <style scoped>
 .resource-page { padding: 24px; min-height: 100%; background: #f5f7fa; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }.header-main { display: flex; gap: 12px; align-items: flex-start; }.back-button { margin-top: 1px; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; }.header-main { display: block; min-width: 0; }.back-button { display: inline-flex; margin: 0 0 10px; padding: 0; height: 24px; color: #64748b; font-size: 14px; }.back-button:hover { color: #2563eb; }.page-header h2 { font-size: 26px; line-height: 34px; }
 .page-header h2 { margin: 0 0 6px; color: #1f2937; }.page-header p { margin: 0; color: #909399; }
 .resource-footer { color: #909399; display: flex; justify-content: space-between; padding: 14px 2px; font-size: 12px; }
 .status-tag { min-width: 64px; height: 30px; padding: 0 10px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; white-space: nowrap; line-height: 28px; }
